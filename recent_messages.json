@@ -1,21 +1,5 @@
 [
   {
-    "original_message_id": 1010,
-    "text": "Черга на переїзді",
-    "sender_name": "Юлія",
-    "sender_username": "yulia_user",
-    "status": "закрито",
-    "timestamp": "2025-07-08T13:50:42.462854+03:00"
-  },
-  {
-    "original_message_id": 1011,
-    "text": "Проїзд вільний",
-    "sender_name": "Сергій",
-    "sender_username": "sergiy_user",
-    "status": "відкрито",
-    "timestamp": "2025-07-08T14:05:42.462856+03:00"
-  },
-  {
     "original_message_id": 1012,
     "text": "Переїзд тимчасово закрито",
     "sender_name": "Наталія",
@@ -110,5 +94,21 @@
     "sender_username": "Valentyn_O_O",
     "status": "невідомо",
     "timestamp": "2025-07-08T13:32:36.340622"
+  },
+  {
+    "original_message_id": 37220,
+    "text": "-",
+    "sender_name": "Евгений",
+    "sender_username": "",
+    "status": "невідомо",
+    "timestamp": "2025-07-08T16:25:16.136918"
+  },
+  {
+    "original_message_id": 37222,
+    "text": "Стою уже 40 мин. Открывался два раза. Тупо проехал 5 авто и закрылся. (((",
+    "sender_name": "Евгений",
+    "sender_username": "",
+    "status": "невідомо",
+    "timestamp": "2025-07-08T16:26:24.424367"
   }
 ]
