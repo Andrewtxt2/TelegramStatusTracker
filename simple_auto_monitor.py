@@ -1,140 +1,159 @@
 #!/usr/bin/env python3
 """
-Спрощений автоматичний моніторинг без API авторизації
-Використовує webhook та інші методи для отримання повідомлень
+Простий автоматичний моніторинг групи
 """
 
 import asyncio
 import aiohttp
 import json
+from telethon import TelegramClient, events
 from datetime import datetime
 from config import Config
 from logger import setup_logger
-from message_analyzer import MessageAnalyzer
 
 class SimpleAutoMonitor:
     def __init__(self):
-        self.logger = setup_logger("simple_auto")
+        self.logger = setup_logger("simple_auto_monitor")
         self.config = Config()
-        self.analyzer = MessageAnalyzer()
+        
+        # API credentials
+        self.api_id = 26886585
+        self.api_hash = "166e3719a0d93c12bf76af43fe91425f"
+        self.phone = "+380686850166"
+        
+        self.client = TelegramClient('session', self.api_id, self.api_hash)
         self.bot_token = self.config.bot_token
         self.running = False
         
     async def start(self):
-        """Запуск спрощеного моніторингу"""
-        self.logger.info("🚀 Запуск спрощеного автоматичного моніторингу")
-        
-        # Запуск веб-сервера для webhook
-        await self.setup_webhook()
-        
-        self.running = True
-        
-        # Основний цикл
-        while self.running:
-            await asyncio.sleep(1)
-            
-    async def setup_webhook(self):
-        """Налаштування webhook для отримання повідомлень"""
+        """Запуск моніторингу"""
         try:
-            # Інформація про webhook
-            webhook_url = "https://your-replit-url.replit.app/webhook"  # Буде автоматично згенеровано
+            self.logger.info("Запуск простого автоматичного моніторингу...")
             
-            url = f"https://api.telegram.org/bot{self.bot_token}/setWebhook"
-            payload = {
-                'url': webhook_url,
-                'allowed_updates': ['message', 'callback_query']
-            }
+            # Підключення
+            await self.client.start(phone=self.phone)
             
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload) as response:
-                    result = await response.json()
-                    if result.get('ok'):
-                        self.logger.info("✅ Webhook налаштовано успішно")
-                    else:
-                        self.logger.error(f"❌ Помилка налаштування webhook: {result}")
-                        
+            if not await self.client.is_user_authorized():
+                self.logger.error("Не авторизований")
+                return False
+                
+            me = await self.client.get_me()
+            self.logger.info(f"Авторизовано: {me.first_name}")
+            
+            # Пошук групи
+            try:
+                entity = await self.client.get_entity('pereizdvyshneve')
+                self.logger.info(f"Знайдено групу: {entity.title}")
+            except Exception as e:
+                self.logger.error(f"Група не знайдена: {e}")
+                return False
+            
+            # Налаштування обробника
+            @self.client.on(events.NewMessage(chats=entity))
+            async def handle_message(event):
+                await self.process_message(event)
+            
+            self.running = True
+            self.logger.info("Моніторинг активний")
+            
+            # Головний цикл
+            while self.running:
+                await asyncio.sleep(1)
+                
         except Exception as e:
-            self.logger.error(f"Помилка налаштування webhook: {e}")
+            self.logger.error(f"Помилка: {e}")
+            return False
             
-    async def process_forwarded_message(self, message_text, sender_info):
-        """Обробка пересланого повідомлення"""
+    async def process_message(self, event):
+        """Обробка повідомлення"""
         try:
-            # Аналіз повідомлення
-            analysis = await self.analyzer.analyze_message(message_text)
+            message = event.message
             
-            # Відправка в адмін-групу з результатами аналізу
-            await self.send_to_admin_group(message_text, sender_info, analysis)
-            
-        except Exception as e:
-            self.logger.error(f"Помилка обробки повідомлення: {e}")
-            
-    async def send_to_admin_group(self, text, sender_info, analysis):
-        """Відправка в адмін-групу з кнопками"""
-        try:
-            admin_group_id = self.config.admin_group_id
-            
-            if not admin_group_id:
-                self.logger.warning("ID адмін-групи не налаштовано")
+            if message.from_id is None:
                 return
                 
-            # AI аналіз
-            suggested_status = analysis.get('suggested_status', 'невідомо')
-            confidence = analysis.get('confidence', 0)
+            # Ігнорування ботів
+            sender = await message.get_sender()
+            if sender.bot:
+                return
+                
+            self.logger.info(f"Нове повідомлення від {sender.first_name}")
             
-            status_emoji = "🟢" if suggested_status == "відкрито" else "🔴" if suggested_status == "закрито" else "⚪"
+            # Аналіз тексту
+            text = message.text.lower()
+            status = "невідомо"
             
-            formatted_text = f"""
-📨 **НОВЕ ПОВІДОМЛЕННЯ З ГРУПИ ПЕРЕЇЗДУ**
+            if any(word in text for word in ['відкрито', 'открыто', 'доступно', 'работает']):
+                status = "відкрито"
+            elif any(word in text for word in ['закрито', 'закрыто', 'недоступно', 'не работает']):
+                status = "закрито"
+            
+            # Відправка до бота
+            await self.send_to_bot({
+                'text': message.text,
+                'sender_name': sender.first_name,
+                'sender_username': sender.username or '',
+                'status': status,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            self.logger.error(f"Помилка обробки: {e}")
+            
+    async def send_to_bot(self, data):
+        """Відправка до бота"""
+        try:
+            admin_ids = self.config.admin_user_ids
+            
+            status_emoji = "🟢" if data['status'] == "відкрито" else "🔴" if data['status'] == "закрито" else "⚪"
+            
+            text = f"""
+🔄 **АВТОМАТИЧНО ЗНАЙДЕНО**
 
-👤 **Від:** {sender_info.get('name', 'Невідомо')}
-🤖 **AI Аналіз:** {status_emoji} {suggested_status.upper()} (впевненість: {confidence:.0%})
+👤 **Від:** {data['sender_name']} (@{data['sender_username']})
+🕐 **Час:** {data['timestamp']}
+🤖 **Статус:** {status_emoji} {data['status'].upper()}
 
 📝 **Текст:**
-{text}
+{data['text']}
 
-⚡ _Натисніть кнопку для затвердження статусу_
+⚡ _Знайдено автоматично_
 """
 
-            url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
-            payload = {
-                'chat_id': admin_group_id,
-                'text': formatted_text,
-                'parse_mode': 'Markdown',
-                'reply_markup': {
-                    'inline_keyboard': [[
-                        {'text': '✅ ВІДКРИТО', 'callback_data': f'approve_open_{hash(text)}'},
-                        {'text': '❌ ЗАКРИТО', 'callback_data': f'approve_closed_{hash(text)}'},
-                        {'text': '🗑 ВІДХИЛИТИ', 'callback_data': f'reject_{hash(text)}'}
-                    ]]
-                }
-            }
-            
+            # Відправка адміністраторам
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload) as response:
-                    if response.status == 200:
-                        self.logger.info("✅ Повідомлення відправлено в адмін-групу")
-                    else:
-                        error_text = await response.text()
-                        self.logger.error(f"❌ Помилка відправки: {error_text}")
+                for admin_id in admin_ids:
+                    try:
+                        url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+                        payload = {
+                            'chat_id': admin_id,
+                            'text': text,
+                            'parse_mode': 'Markdown'
+                        }
+                        
+                        async with session.post(url, json=payload) as resp:
+                            if resp.status == 200:
+                                self.logger.info(f"Відправлено {admin_id}")
+                            else:
+                                self.logger.error(f"Помилка {admin_id}: {resp.status}")
+                                
+                    except Exception as e:
+                        self.logger.error(f"Помилка відправки {admin_id}: {e}")
                         
         except Exception as e:
-            self.logger.error(f"Помилка відправки в адмін-групу: {e}")
+            self.logger.error(f"Помилка відправки: {e}")
             
     async def stop(self):
-        """Зупинка моніторингу"""
-        self.logger.info("Зупинка спрощеного моніторингу...")
+        """Зупинка"""
         self.running = False
+        await self.client.disconnect()
 
 async def main():
-    """Головна функція"""
     monitor = SimpleAutoMonitor()
-    
     try:
         await monitor.start()
     except KeyboardInterrupt:
         await monitor.stop()
-    except Exception as e:
-        monitor.logger.critical(f"Критична помилка: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())

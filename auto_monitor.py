@@ -21,9 +21,9 @@ class AutoGroupMonitor:
         self.config = Config()
         
         # API credentials
-        self.api_id = int(os.getenv('TELEGRAM_API_ID', '0'))
-        self.api_hash = os.getenv('TELEGRAM_API_HASH', '')
-        self.phone = os.getenv('TELEGRAM_PHONE', '')
+        self.api_id = int(os.getenv('TELEGRAM_API_ID', '26886585'))
+        self.api_hash = os.getenv('TELEGRAM_API_HASH', '166e3719a0d93c12bf76af43fe91425f')
+        self.phone = os.getenv('TELEGRAM_PHONE', '+380686850166')
         
         if not all([self.api_id, self.api_hash, self.phone]):
             self.logger.error("Missing API credentials")

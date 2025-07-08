@@ -20,6 +20,10 @@ args = "Telegram Bot Setup"
 task = "workflow.run"
 args = "telegram_bot_setup"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "auto_monitor"
+
 [[workflows.workflow]]
 name = "Telegram Bot Setup"
 author = "agent"
@@ -35,3 +39,11 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python simple_monitor.py"
+
+[[workflows.workflow]]
+name = "auto_monitor"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 simple_auto_monitor.py"

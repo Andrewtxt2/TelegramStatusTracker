@@ -120,6 +120,9 @@ Changelog:
 - July 08, 2025. Added multiple administrators support (IDs: 564704015, 7766810783)
 - July 08, 2025. Enhanced configuration system to merge config file and environment variables
 - July 08, 2025. Bot successfully deployed and running with AI analysis and approval workflow
+- July 08, 2025. Successfully configured Telegram MTProto API authentication
+- July 08, 2025. Activated automatic group monitoring for https://t.me/pereizdvyshneve
+- July 08, 2025. Full automation achieved - bot now automatically monitors group without manual forwarding
 ```
 
 ## User Preferences
