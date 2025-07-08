@@ -5,7 +5,7 @@ channel = "stable-24_05"
 packages = ["openssl"]
 
 [workflows]
-runButton = "Start Bot"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -27,15 +27,6 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pip install python-telegram-bot>=20.0 aiohttp>=3.8.0 aiosqlite>=0.17.0 psutil>=5.9.0"
-
-[[workflows.workflow]]
-name = "telegram_bot_app"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3 app.py"
-waitForPort = 80
 
 [[workflows.workflow]]
 name = "Deploy Bot"
@@ -79,6 +70,15 @@ args = "sleep 3"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3 app.py"
+
+[[workflows.workflow]]
+name = "telegram_bot_app"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 app.py"
+waitForPort = 80
 
 [deployment]
 deploymentTarget = "cloudrun"
