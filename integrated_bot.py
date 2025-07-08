@@ -39,7 +39,19 @@ class IntegratedBotRunner:
         self.running = False
         self.recent_messages = []  # Store last 14 messages
         self.message_history_file = "recent_messages.json"
+        self.polling_task = None
         
+    async def start_polling(self):
+        """Запуск polling для callback queries"""
+        try:
+            await self.application.updater.start_polling(
+                drop_pending_updates=True,
+                allowed_updates=["callback_query"]
+            )
+            self.logger.info("Polling для callback запущено")
+        except Exception as e:
+            self.logger.error(f"Помилка polling: {e}")
+            
     async def start(self):
         """Start both bot service and Telegram client monitoring"""
         try:
@@ -86,16 +98,12 @@ class IntegratedBotRunner:
             # Додавання обробника callback
             self.application.add_handler(CallbackQueryHandler(self.handle_admin_callback))
             
-            # Запуск bot application з polling для callback
+            # Запуск bot application
             await self.application.initialize()
             await self.application.start()
             
-            # ВАЖЛИВО: Запускаємо polling для обробки callback кнопок
-            # MTProto отримує повідомлення з групи, Bot API обробляє callback
-            await self.application.updater.start_polling(
-                drop_pending_updates=True,
-                allowed_updates=["callback_query"]  # Тільки callback queries
-            )
+            # Запуск polling в окремій задачі
+            self.polling_task = asyncio.create_task(self.start_polling())
             
             self.running = True
             self.logger.info("Інтегрована система запущена та активна")
@@ -274,14 +282,18 @@ class IntegratedBotRunner:
             
             data = query.data
             user_id = query.from_user.id
+            user_name = query.from_user.first_name or "Невідомо"
+            
+            self.logger.info(f"📞 Отримано callback від {user_name} ({user_id}): {data}")
             
             # Check admin permissions
             admin_ids = self.config.admin_user_ids
             if user_id not in admin_ids:
+                self.logger.warning(f"❌ Неавторизований callback від {user_id}")
                 await query.edit_message_text("❌ У вас немає прав адміністратора")
                 return
                 
-            self.logger.info(f"Callback від адміністратора {user_id}: {data}")
+            self.logger.info(f"✅ Авторизований callback від адміністратора {user_name} ({user_id}): {data}")
             
             # Parse callback data
             parts = data.split('_')
@@ -416,6 +428,16 @@ class IntegratedBotRunner:
         try:
             self.logger.info("Зупинка інтегрованої системи...")
             self.running = False
+            
+            # Зупиняємо polling task
+            if self.polling_task and not self.polling_task.done():
+                self.polling_task.cancel()
+                try:
+                    await self.polling_task
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    self.logger.error(f"Помилка зупинки polling task: {e}")
             
             if self.application and self.application.updater:
                 try:
