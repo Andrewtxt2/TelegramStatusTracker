@@ -125,7 +125,7 @@ Changelog:
 - July 08, 2025. Full automation achieved - bot now automatically monitors group without manual forwarding
 - July 08, 2025. Implemented integrated system with approval buttons for admin workflow
 - July 08, 2025. All administrators configured and receiving messages with inline keyboard buttons
-- July 08, 2025. Finalized publication format: status + time + group link (e.g., "✅ Відкрито 🕓 11:17 🔗 https://t.me/pereizdvyshneve")
+- July 08, 2025. Finalized publication format: status + time only (e.g., "✅ Відкрито 🕓 11:17")
 ```
 
 ## User Preferences
