@@ -111,12 +111,10 @@ class DaemonMonitor:
         try:
             self.logger.info("Ініціалізація MTProto...")
             
-            # Копіюємо існуючу сесію якщо потрібно
-            if not os.path.exists(f"{self.session_name}.session"):
-                if os.path.exists("session.session"):
-                    import shutil
-                    shutil.copy("session.session", f"{self.session_name}.session")
-                    self.logger.info("Скопійовано існуючу сесію")
+            # Використовуємо існуючу сесію напряму
+            if os.path.exists("session.session"):
+                self.client = TelegramClient('session', self.api_id, self.api_hash)
+                self.logger.info("Використовуємо існуючу сесію")
             
             # Підключення
             await self.client.start()
