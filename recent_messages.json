@@ -1,13 +1,5 @@
 [
   {
-    "original_message_id": 1010,
-    "text": "Черга на переїзді",
-    "sender_name": "Юлія",
-    "sender_username": "yulia_user",
-    "status": "закрито",
-    "timestamp": "2025-07-08T13:50:42.462854+03:00"
-  },
-  {
     "original_message_id": 1011,
     "text": "Проїзд вільний",
     "sender_name": "Сергій",
@@ -110,5 +102,13 @@
     "sender_username": "Valentyn_O_O",
     "status": "невідомо",
     "timestamp": "2025-07-08T13:32:36.340622"
+  },
+  {
+    "original_message_id": 37235,
+    "text": "-",
+    "sender_name": "Vyacheslav",
+    "sender_username": "Vyachesl_av",
+    "status": "невідомо",
+    "timestamp": "2025-07-08T17:30:44.843290"
   }
 ]
