@@ -80,6 +80,15 @@ args = "sleep 3"
 task = "shell.exec"
 args = "python3 app.py"
 
+[[workflows.workflow]]
+name = "Auth Window"
+author = 43506130
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 run_auth_window.py"
+
 [deployment]
 deploymentTarget = "cloudrun"
 run = ["sh", "-c", "python3 app.py"]
