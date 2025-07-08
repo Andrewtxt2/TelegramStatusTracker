@@ -18,7 +18,7 @@ args = "Telegram Bot Setup"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Stable Monitor Service"
+args = "Daemon Monitor Service"
 
 [[workflows.workflow]]
 name = "Telegram Bot Setup"
@@ -93,12 +93,12 @@ task = "shell.exec"
 args = "python3 app.py"
 
 [[workflows.workflow]]
-name = "Stable Monitor Service"
+name = "Daemon Monitor Service"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd /home/runner/workspace && python3 stable_monitor.py"
+args = "cd /home/runner/workspace && python3 daemon_monitor.py"
 
 [deployment]
 deploymentTarget = "cloudrun"
