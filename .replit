@@ -5,7 +5,7 @@ channel = "stable-24_05"
 packages = ["openssl"]
 
 [workflows]
-runButton = "Project"
+runButton = "Deploy Bot"
 
 [[workflows.workflow]]
 name = "Project"
@@ -37,8 +37,18 @@ task = "shell.exec"
 args = "python3 app.py"
 waitForPort = 80
 
+[[workflows.workflow]]
+name = "Deploy Bot"
+author = 43506130
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 app.py"
+
 [deployment]
 deploymentTarget = "cloudrun"
+run = ["sh", "-c", "python3 app.py"]
 
 [[ports]]
 localPort = 80
