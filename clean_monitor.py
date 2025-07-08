@@ -33,6 +33,7 @@ class CleanMonitor:
         self.running = False
         self.start_time = time.time()
         self.message_storage = {}  # Зберігання повідомлень для callback
+        self.last_message_id = 0  # Для відстеження нових повідомлень
         
     async def start(self):
         """Запуск чистого моніторингу"""
@@ -80,18 +81,27 @@ class CleanMonitor:
         try:
             message_text = event.message.text
             if not message_text:
+                self.logger.debug("Повідомлення без тексту, пропускаємо")
                 return
                 
-            self.logger.info(f"📨 Нове повідомлення: {message_text[:50]}...")
+            # Перевірка чи повідомлення нове
+            if event.message.id <= self.last_message_id:
+                self.logger.debug(f"Повідомлення {event.message.id} вже оброблене")
+                return
+                
+            self.last_message_id = event.message.id
+            
+            self.logger.info(f"📨 Нове повідомлення ID {event.message.id}: {message_text[:100]}...")
             
             # Аналіз повідомлення
             analysis = await self.analyze_message(message_text)
+            self.logger.info(f"🤖 Аналіз: {analysis['suggested_status']} (упевненість: {analysis['confidence']:.0%})")
             
             # Відправка адміністраторам
-            await self.send_to_admin(message_text, analysis)
+            await self.send_to_admin(message_text, analysis, event.message.id)
             
         except Exception as e:
-            self.logger.error(f"Помилка обробки: {e}")
+            self.logger.error(f"Помилка обробки повідомлення: {e}", exc_info=True)
             
     async def analyze_message(self, text):
         """Простий аналіз тексту"""
@@ -117,22 +127,28 @@ class CleanMonitor:
             "keywords_found": is_open or is_closed
         }
         
-    async def send_to_admin(self, message_text, analysis):
+    async def send_to_admin(self, message_text, analysis, message_id):
         """Відправка повідомлення адміністраторам"""
         try:
+            # Зберігаємо повідомлення для callback
+            self.message_storage[message_id] = {
+                'text': message_text,
+                'analysis': analysis,
+                'timestamp': datetime.now().isoformat()
+            }
+            
             # Клавіатура з кнопками
             keyboard = [
                 [
-                    InlineKeyboardButton("✅ ВІДКРИТО", callback_data="approve_open"),
-                    InlineKeyboardButton("❌ ЗАКРИТО", callback_data="approve_closed")
+                    InlineKeyboardButton("✅ ВІДКРИТО", callback_data=f"approve_open_{message_id}"),
+                    InlineKeyboardButton("❌ ЗАКРИТО", callback_data=f"approve_closed_{message_id}")
                 ],
-                [InlineKeyboardButton("🗑 ВІДХИЛИТИ", callback_data="reject")]
+                [InlineKeyboardButton("🗑 ВІДХИЛИТИ", callback_data=f"reject_{message_id}")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             # Формат повідомлення
-            admin_message = f"""
-🔔 Нове повідомлення з групи:
+            admin_message = f"""🔔 Нове повідомлення з групи:
 
 📝 Текст: {message_text}
 
@@ -140,11 +156,12 @@ class CleanMonitor:
 Рекомендований статус: {analysis['suggested_status']}
 Упевненість: {analysis['confidence']:.0%}
 
-Оберіть дію:
-"""
+Оберіть дію:"""
             
             # Відправка адміністраторам
-            admin_ids = self.config.admin_user_ids()
+            admin_ids = self.config.admin_user_ids
+            sent_count = 0
+            
             for admin_id in admin_ids:
                 try:
                     await self.bot.send_message(
@@ -152,9 +169,15 @@ class CleanMonitor:
                         text=admin_message,
                         reply_markup=reply_markup
                     )
+                    sent_count += 1
                     self.logger.info(f"✅ Відправлено адміністратору {admin_id}")
                 except Exception as e:
                     self.logger.error(f"Помилка відправки адміністратору {admin_id}: {e}")
+                    
+            if sent_count == 0:
+                self.logger.error("Не вдалося відправити жодному адміністратору!")
+            else:
+                self.logger.info(f"📤 Повідомлення відправлено {sent_count} адміністраторам")
                     
         except Exception as e:
             self.logger.error(f"Помилка відправки адміністраторам: {e}")
@@ -194,18 +217,21 @@ class CleanMonitor:
             # Відповідь на callback
             await query.answer()
             
-            # Обробка різних типів кнопок
-            if callback_data == "approve_open":
-                await self.publish_to_channel("✅ Відкрито", query)
-            elif callback_data == "approve_closed":
-                await self.publish_to_channel("❌ Закрито", query)
-            elif callback_data == "reject":
-                await self.reject_message(query)
+            # Парсинг callback data
+            if callback_data.startswith("approve_open_"):
+                message_id = int(callback_data.split("_")[-1])
+                await self.publish_to_channel("✅ Відкрито", query, message_id)
+            elif callback_data.startswith("approve_closed_"):
+                message_id = int(callback_data.split("_")[-1])
+                await self.publish_to_channel("❌ Закрито", query, message_id)
+            elif callback_data.startswith("reject_"):
+                message_id = int(callback_data.split("_")[-1])
+                await self.reject_message(query, message_id)
             
         except Exception as e:
             self.logger.error(f"Помилка обробки callback: {e}")
             
-    async def publish_to_channel(self, status, query):
+    async def publish_to_channel(self, status, query, message_id):
         """Публікація статусу в канал"""
         try:
             # Отримання поточного часу в GMT+3
@@ -221,19 +247,30 @@ class CleanMonitor:
             await self.bot.send_message(chat_id=target_channel, text=message)
             
             # Підтвердження адміністратору
-            await query.edit_message_text(f"✅ Опубліковано в канал:\n{message}")
+            original_text = self.message_storage.get(message_id, {}).get('text', 'Повідомлення')
+            await query.edit_message_text(f"✅ Опубліковано в канал:\n{message}\n\n📝 Оригінальне повідомлення:\n{original_text[:200]}{'...' if len(original_text) > 200 else ''}")
             
             self.logger.info(f"✅ Опубліковано в канал: {message}")
+            
+            # Видаляємо з пам'яті
+            if message_id in self.message_storage:
+                del self.message_storage[message_id]
             
         except Exception as e:
             self.logger.error(f"Помилка публікації: {e}")
             await query.edit_message_text(f"❌ Помилка публікації: {e}")
             
-    async def reject_message(self, query):
+    async def reject_message(self, query, message_id):
         """Відхилення повідомлення"""
         try:
-            await query.edit_message_text("🗑 Повідомлення відхилено")
-            self.logger.info("🗑 Повідомлення відхилено адміністратором")
+            original_text = self.message_storage.get(message_id, {}).get('text', 'Повідомлення')
+            await query.edit_message_text(f"🗑 Повідомлення відхилено\n\n📝 Відхилене повідомлення:\n{original_text[:200]}{'...' if len(original_text) > 200 else ''}")
+            self.logger.info(f"🗑 Повідомлення {message_id} відхилено адміністратором")
+            
+            # Видаляємо з пам'яті
+            if message_id in self.message_storage:
+                del self.message_storage[message_id]
+                
         except Exception as e:
             self.logger.error(f"Помилка відхилення: {e}")
             
