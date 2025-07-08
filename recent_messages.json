@@ -1,21 +1,5 @@
 [
   {
-    "original_message_id": 1008,
-    "text": "Аварійна ситуація, переїзд закрито",
-    "sender_name": "Світлана",
-    "sender_username": "svitlana_user",
-    "status": "закрито",
-    "timestamp": "2025-07-08T13:05:42.462848+03:00"
-  },
-  {
-    "original_message_id": 1009,
-    "text": "Все норм, їздимо",
-    "sender_name": "Василь",
-    "sender_username": "vasyl_user",
-    "status": "відкрито",
-    "timestamp": "2025-07-08T13:20:42.462851+03:00"
-  },
-  {
     "original_message_id": 1010,
     "text": "Черга на переїзді",
     "sender_name": "Юлія",
@@ -110,5 +94,21 @@
     "sender_username": "PRINT_DD",
     "status": "невідомо",
     "timestamp": "2025-07-08T12:43:19.482872"
+  },
+  {
+    "original_message_id": 37198,
+    "text": "Вже +",
+    "sender_name": "Валентин Охріменко",
+    "sender_username": "Valentyn_O_O",
+    "status": "невідомо",
+    "timestamp": "2025-07-08T13:32:36.312914"
+  },
+  {
+    "original_message_id": 37197,
+    "text": "-",
+    "sender_name": "Валентин Охріменко",
+    "sender_username": "Valentyn_O_O",
+    "status": "невідомо",
+    "timestamp": "2025-07-08T13:32:36.340622"
   }
 ]
