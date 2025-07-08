@@ -86,10 +86,16 @@ class IntegratedBotRunner:
             # Додавання обробника callback
             self.application.add_handler(CallbackQueryHandler(self.handle_admin_callback))
             
-            # Запуск bot application без polling (тільки для callback)
+            # Запуск bot application з polling для callback
             await self.application.initialize()
             await self.application.start()
-            # НЕ запускаємо polling, тому що користуємо MTProto для отримання повідомлень
+            
+            # ВАЖЛИВО: Запускаємо polling для обробки callback кнопок
+            # MTProto отримує повідомлення з групи, Bot API обробляє callback
+            await self.application.updater.start_polling(
+                drop_pending_updates=True,
+                allowed_updates=["callback_query"]  # Тільки callback queries
+            )
             
             self.running = True
             self.logger.info("Інтегрована система запущена та активна")
@@ -411,13 +417,19 @@ class IntegratedBotRunner:
             self.logger.info("Зупинка інтегрованої системи...")
             self.running = False
             
-            if self.application:
-                await self.application.updater.stop()
-                await self.application.stop()
-                await self.application.shutdown()
+            if self.application and self.application.updater:
+                try:
+                    await self.application.updater.stop()
+                    await self.application.stop()
+                    await self.application.shutdown()
+                except Exception as e:
+                    self.logger.error(f"Помилка зупинки application: {e}")
                 
-            if self.client:
-                await self.client.disconnect()
+            if self.client and self.client.is_connected():
+                try:
+                    await self.client.disconnect()
+                except Exception as e:
+                    self.logger.error(f"Помилка зупинки client: {e}")
                 
             self.logger.info("Система зупинена")
             
