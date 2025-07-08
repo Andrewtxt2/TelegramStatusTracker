@@ -168,17 +168,17 @@ class IntegratedBotRunner:
             
             status_emoji = "🟢" if message_data['status'] == "відкрито" else "🔴" if message_data['status'] == "закрито" else "⚪"
             
-            text = f"""
-🔄 **АВТОМАТИЧНО ЗНАЙДЕНО**
+            # Простий текст без складного форматування
+            text = f"""🔄 АВТОМАТИЧНО ЗНАЙДЕНО
 
-👤 **Від:** {message_data['sender_name']} (@{message_data['sender_username']})
-🕐 **Час:** {message_data['timestamp']}
-🤖 **AI Аналіз:** {status_emoji} {message_data['status'].upper()}
+👤 Від: {message_data['sender_name']} (@{message_data['sender_username']})
+🕐 Час: {message_data['timestamp']}
+🤖 AI Аналіз: {status_emoji} {message_data['status'].upper()}
 
-📝 **Текст:**
+📝 Текст:
 {message_data['text']}
 
-📊 **Останні 14 повідомлень:**
+📊 Останні 14 повідомлень:
 """
             
             # Add recent messages summary
@@ -188,7 +188,7 @@ class IntegratedBotRunner:
                 text_short = recent_msg['text'][:30] if len(recent_msg['text']) > 30 else recent_msg['text']
                 text += f"{i}. {time_str} {sender_short}: {text_short}...\n"
             
-            text += "\n⚡ _Знайдено автоматично_"
+            text += "\n⚡ Знайдено автоматично"
 
             # Create unique message ID
             import time
@@ -215,7 +215,6 @@ class IntegratedBotRunner:
                     await self.bot.send_message(
                         chat_id=admin_id,
                         text=text,
-                        parse_mode='Markdown',
                         reply_markup=keyboard
                     )
                     self.logger.info(f"Відправлено з кнопками адміністратору {admin_id}")
