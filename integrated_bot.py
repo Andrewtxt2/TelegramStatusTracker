@@ -7,6 +7,7 @@ Combines bot functionality with direct group monitoring
 import asyncio
 import signal
 import sys
+import os
 from datetime import datetime, timezone, timedelta
 from telethon import TelegramClient, events
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -21,10 +22,10 @@ class IntegratedBotRunner:
         self.logger = setup_logger("integrated_bot")
         self.config = Config()
         
-        # MTProto API credentials
-        self.api_id = 26886585
-        self.api_hash = "166e3719a0d93c12bf76af43fe91425f"
-        self.phone = "+380686850166"
+        # MTProto API credentials from environment variables
+        self.api_id = int(os.getenv('TELEGRAM_API_ID', 26886585))
+        self.api_hash = os.getenv('TELEGRAM_API_HASH', "166e3719a0d93c12bf76af43fe91425f")
+        self.phone = os.getenv('TELEGRAM_PHONE', "+380686850166")
         
         # Telegram client for monitoring
         self.client = TelegramClient('session', self.api_id, self.api_hash)
