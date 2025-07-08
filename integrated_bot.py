@@ -36,6 +36,7 @@ class IntegratedBotRunner:
         # Bot application for handling callbacks
         self.application = None
         self.running = False
+        self.recent_messages = []  # Store last 14 messages
         
     async def start(self):
         """Start both bot service and Telegram client monitoring"""
@@ -150,6 +151,11 @@ class IntegratedBotRunner:
     async def send_to_admin_group(self, message_data):
         """Send message to admin group with approval buttons"""
         try:
+            # Add to recent messages (keep last 14)
+            self.recent_messages.append(message_data)
+            if len(self.recent_messages) > 14:
+                self.recent_messages.pop(0)
+            
             admin_ids = self.config.admin_user_ids
             
             status_emoji = "🟢" if message_data['status'] == "відкрито" else "🔴" if message_data['status'] == "закрито" else "⚪"
@@ -164,8 +170,17 @@ class IntegratedBotRunner:
 📝 **Текст:**
 {message_data['text']}
 
-⚡ _Знайдено автоматично_
+📊 **Останні 14 повідомлень:**
 """
+            
+            # Add recent messages summary
+            for i, recent_msg in enumerate(self.recent_messages, 1):
+                time_str = recent_msg['timestamp'][:16] if len(recent_msg['timestamp']) > 16 else recent_msg['timestamp']
+                sender_short = recent_msg['sender_name'][:10] if len(recent_msg['sender_name']) > 10 else recent_msg['sender_name']
+                text_short = recent_msg['text'][:30] if len(recent_msg['text']) > 30 else recent_msg['text']
+                text += f"{i}. {time_str} {sender_short}: {text_short}...\n"
+            
+            text += "\n⚡ _Знайдено автоматично_"
 
             # Create unique message ID
             import time
@@ -293,9 +308,9 @@ class IntegratedBotRunner:
             status_emoji = "✅" if status == "open" else "❌"
             status_text = "Відкрито" if status == "open" else "Закрито"
             
-            # Use GMT+2 timezone
-            gmt_plus_2 = timezone(timedelta(hours=2))
-            current_time = datetime.now(gmt_plus_2).strftime('%H:%M')
+            # Use GMT+3 timezone
+            gmt_plus_3 = timezone(timedelta(hours=3))
+            current_time = datetime.now(gmt_plus_3).strftime('%H:%M')
             
             channel_text = f"""{status_emoji} {status_text}
 🕓 {current_time}"""

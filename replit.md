@@ -126,7 +126,8 @@ Changelog:
 - July 08, 2025. Implemented integrated system with approval buttons for admin workflow
 - July 08, 2025. All administrators configured and receiving messages with inline keyboard buttons
 - July 08, 2025. Finalized publication format: status + time only (e.g., "✅ Відкрито 🕓 11:17")
-- July 08, 2025. Configured GMT+2 timezone and admin-controlled status logic
+- July 08, 2025. Configured GMT+2 timezone and admin-controlled status logic  
+- July 08, 2025. Updated to GMT+3 timezone and added recent 14 messages context for admins
 ```
 
 ## User Preferences
