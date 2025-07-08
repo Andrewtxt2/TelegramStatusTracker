@@ -8,5 +8,6 @@ dependencies = [
     "aiosqlite>=0.17.0",
     "psutil>=5.9.0",
     "python-telegram-bot>=20.0",
+    "telegram>=0.0.1",
     "telethon>=1.40.0",
 ]
