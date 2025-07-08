@@ -1,0 +1,41 @@
+{
+  "bot_token": "",
+  "source_group_id": 0,
+  "admin_group_id": 0,
+  "target_channel_id": 0,
+  "admin_user_id": 0,
+  "additional_admin_ids": [],
+  "database_path": "bot_data.db",
+  "log_level": "INFO",
+  "max_errors": 10,
+  "retry_delay": 5,
+  "health_check_interval": 300,
+  "bot_settings": {
+    "polling_interval": 1,
+    "timeout": 30,
+    "read_timeout": 30,
+    "write_timeout": 30,
+    "connect_timeout": 30
+  },
+  "message_analysis": {
+    "confidence_threshold": 0.6,
+    "auto_approve_threshold": 0.9,
+    "enable_ai_analysis": true
+  },
+  "recovery_settings": {
+    "max_recovery_attempts": 5,
+    "recovery_cooldown": 300,
+    "error_threshold": 10,
+    "auto_restart_enabled": true
+  },
+  "notification_settings": {
+    "notify_admin_on_error": true,
+    "notify_admin_on_recovery": true,
+    "notification_rate_limit": 60
+  },
+  "database_settings": {
+    "cleanup_interval_days": 30,
+    "backup_enabled": true,
+    "backup_interval_hours": 24
+  }
+}
