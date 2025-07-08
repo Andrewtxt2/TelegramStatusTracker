@@ -367,7 +367,7 @@ ID: {message_id}
             message = f"{status} 🕓 {time_str}"
             
             # Публікація
-            target_channel = self.config.target_channel_id()
+            target_channel = self.config.target_channel_id
             await self.bot.send_message(chat_id=target_channel, text=message)
             
             # Підтвердження

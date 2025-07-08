@@ -151,6 +151,8 @@ Changelog:
 - July 08, 2025. Daemon service successfully deployed with proper session handling and background operation
 - July 08, 2025. Updated monitoring group to https://t.me/+VKjTwJXuZdc1MzBi ("Тест переїзд 08.07")
 - July 08, 2025. Daemon successfully connected to new group and is monitoring for messages
+- July 08, 2025. Fixed channel publishing bug - corrected target_channel_id property access (removed parentheses)
+- July 08, 2025. Channel publishing now works correctly when admins click approval buttons
 ```
 
 ## User Preferences
