@@ -1,34 +1,36 @@
 #!/usr/bin/env python3
 """
-Відправка тестового повідомлення в групу для перевірки роботи бота
+Тест для перевірки роботи системи
 """
 import asyncio
-import os
 from telethon import TelegramClient
+import os
 
-async def send_test_message():
-    """Відправити тестове повідомлення в групу"""
+async def test_message():
+    api_id = int(os.getenv('TELEGRAM_API_ID'))
+    api_hash = os.getenv('TELEGRAM_API_HASH')
+    
+    client = TelegramClient('test_session', api_id, api_hash)
+    await client.start()
+    
+    # Перевірка чи є доступ до групи
     try:
-        # Ініціалізація клієнта
-        api_id = int(os.getenv('TELEGRAM_API_ID'))
-        api_hash = os.getenv('TELEGRAM_API_HASH')
-        
-        client = TelegramClient('session', api_id, api_hash)
-        
-        await client.start()
-        
-        # Відправляємо тестове повідомлення
         entity = await client.get_entity('pereizdvyshneve')
+        print(f"✅ Група знайдена: {entity.title}")
+        print(f"ID групи: {entity.id}")
+        print(f"Тип: {type(entity)}")
         
-        test_message = "🧪 ТЕСТОВЕ ПОВІДОМЛЕННЯ 🧪\n\n✅ Переїзд ВІДКРИТО\n\n⏰ Час: зараз\n\n(Це тестове повідомлення для перевірки роботи бота)"
-        
-        await client.send_message(entity, test_message)
-        print("✅ Тестове повідомлення відправлено")
-        
-        await client.disconnect()
-        
+        # Отримати останні повідомлення
+        messages = await client.get_messages(entity, limit=3)
+        print(f"\nОстанні {len(messages)} повідомлень:")
+        for msg in messages:
+            if msg.text:
+                print(f"ID: {msg.id}, Текст: {msg.text[:50]}...")
+                
     except Exception as e:
-        print(f"❌ Помилка відправки: {e}")
+        print(f"Помилка: {e}")
+    
+    await client.disconnect()
 
 if __name__ == "__main__":
-    asyncio.run(send_test_message())
+    asyncio.run(test_message())
