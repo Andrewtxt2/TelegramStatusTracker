@@ -7,7 +7,7 @@ Combines bot functionality with direct group monitoring
 import asyncio
 import signal
 import sys
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from telethon import TelegramClient, events
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CallbackQueryHandler, ContextTypes
@@ -289,9 +289,13 @@ class IntegratedBotRunner:
             target_channel_id = self.config.target_channel_id or "@kryuvysh"
             
             # Format message for channel with requested format
+            # Status depends only on admin button choice
             status_emoji = "✅" if status == "open" else "❌"
             status_text = "Відкрито" if status == "open" else "Закрито"
-            current_time = datetime.now().strftime('%H:%M')
+            
+            # Use GMT+2 timezone
+            gmt_plus_2 = timezone(timedelta(hours=2))
+            current_time = datetime.now(gmt_plus_2).strftime('%H:%M')
             
             channel_text = f"""{status_emoji} {status_text}
 🕓 {current_time}"""
