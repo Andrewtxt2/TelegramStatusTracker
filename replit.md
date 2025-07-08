@@ -149,6 +149,8 @@ Changelog:
 - July 08, 2025. Deployed stable version with retry logic, proper error handling, and graceful shutdown
 - July 08, 2025. Implemented daemon_monitor.py - fully autonomous service independent of browser tabs
 - July 08, 2025. Daemon service successfully deployed with proper session handling and background operation
+- July 08, 2025. Updated monitoring group to https://t.me/+VKjTwJXuZdc1MzBi ("Тест переїзд 08.07")
+- July 08, 2025. Daemon successfully connected to new group and is monitoring for messages
 ```
 
 ## User Preferences
