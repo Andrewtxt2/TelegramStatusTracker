@@ -51,7 +51,8 @@ class TelegramGroupMonitor:
                 self.logger.error("User not authorized. Please run authorization first.")
                 return False
                 
-            self.logger.info(f"Authorized as: {(await self.client.get_me()).first_name}")
+            me = await self.client.get_me()
+            self.logger.info(f"Authorized as: {me.first_name}")
             
             # Register event handlers
             await self.register_handlers()
@@ -64,16 +65,22 @@ class TelegramGroupMonitor:
             
         except Exception as e:
             self.logger.error(f"Error starting Telegram client: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             return False
             
     async def register_handlers(self):
         """Register message handlers for the source group"""
         source_group = self.config.source_group_id
         
+        # Try different ways to identify the source group
         if isinstance(source_group, str) and source_group.startswith('@'):
             source_entity = source_group
         elif isinstance(source_group, str) and 'pereizdvyshneve' in source_group:
             source_entity = 'pereizdvyshneve'
+        elif isinstance(source_group, str) and 't.me' in source_group:
+            # Extract username from t.me link
+            source_entity = source_group.split('/')[-1]
         else:
             source_entity = 'pereizdvyshneve'  # Default username
             
