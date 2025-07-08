@@ -293,12 +293,8 @@ class IntegratedBotRunner:
             status_text = "Відкрито" if status == "open" else "Закрито"
             current_time = datetime.now().strftime('%H:%M')
             
-            channel_text = f"""
-{status_emoji} {status_text}
-🕓 {current_time}
-
-{message_data['text']}
-"""
+            channel_text = f"""{status_emoji} {status_text}
+🕓 {current_time}"""
 
             # Publish to channel
             try:
