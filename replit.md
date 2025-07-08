@@ -92,10 +92,19 @@ The system uses an event-driven architecture with async/await patterns for handl
 
 ## Deployment Strategy
 
-### Single Instance Deployment
-- **Rationale**: Designed for simple deployment as a single process
-- **Benefits**: Easier to manage, no coordination complexity
-- **Considerations**: Requires proper process management for 24/7 operation
+### Cloud Run Deployment
+- **Entry Point**: app.py (combines bot service with HTTP server)
+- **Health Check**: HTTP endpoint at /health on port 80
+- **Status Monitoring**: Additional endpoints at /status and /
+- **Architecture**: Hybrid bot + web server for deployment compatibility
+
+### HTTP Server Integration
+- **Technology**: aiohttp web server running alongside Telegram bot
+- **Health Endpoints**: 
+  - `/health` - JSON response with service status and health checks
+  - `/status` - Detailed service information and uptime
+  - `/` - Basic service confirmation
+- **Port Configuration**: Port 80 for Cloud Run compatibility
 
 ### Configuration Management
 - **Environment Variables**: Used for sensitive data (tokens, IDs)
@@ -103,7 +112,8 @@ The system uses an event-driven architecture with async/await patterns for handl
 - **Default Values**: Provides fallback configuration for missing settings
 
 ### Monitoring and Health Checks
-- **Health Check Interval**: Configurable health monitoring
+- **HTTP Health Checks**: Automated health monitoring via HTTP endpoints
+- **Telegram Bot Health**: Verifies bot connectivity to Telegram API
 - **Error Tracking**: Comprehensive error logging and tracking
 - **Recovery Mechanisms**: Automatic recovery from common failures
 
@@ -129,6 +139,9 @@ Changelog:
 - July 08, 2025. Configured GMT+2 timezone and admin-controlled status logic  
 - July 08, 2025. Updated to GMT+3 timezone and added recent 14 messages context for admins
 - July 08, 2025. Implemented persistent message history storage and loading for continuous context
+- July 08, 2025. Added HTTP health check server for deployment compatibility with Cloud Run
+- July 08, 2025. Created app.py as new deployment entry point with web server and health endpoints
+- July 08, 2025. Configured deployment with port 80 and health check endpoint at /health
 ```
 
 ## User Preferences

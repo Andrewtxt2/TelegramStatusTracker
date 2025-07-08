@@ -1,0 +1,51 @@
+# Deployment Configuration for Telegram Bot Service
+# This file documents the deployment requirements and configuration
+
+deployment:
+  type: cloudrun
+  entry_point: app.py
+  port: 80
+  health_check: /health
+  
+  environment_variables:
+    - BOT_TOKEN: "Required - Telegram bot token"
+    - SOURCE_GROUP_ID: "Required - Source group ID to monitor"
+    - ADMIN_GROUP_ID: "Required - Admin group ID for approvals"
+    - TARGET_CHANNEL_ID: "Required - Target channel ID for publishing"
+    - ADMIN_USER_IDS: "Required - Comma-separated admin user IDs"
+    - PORT: "Optional - Defaults to 80"
+    
+  health_check_endpoints:
+    - path: /health
+      description: "Main health check endpoint - returns JSON with service status"
+      expected_response: "200 OK with JSON containing service health"
+      
+    - path: /status
+      description: "Detailed status endpoint - returns service information"
+      expected_response: "200 OK with JSON containing service details"
+      
+    - path: /
+      description: "Root endpoint - basic service confirmation"
+      expected_response: "200 OK with plain text confirmation"
+
+services:
+  telegram_bot:
+    description: "24/7 Telegram bot service for monitoring and forwarding messages"
+    technology: "python-telegram-bot library"
+    monitoring: "Continuous polling of source group"
+    
+  web_server:
+    description: "HTTP server for health checks and status monitoring"
+    technology: "aiohttp web server"
+    endpoints: ["health", "status", "root"]
+    
+  database:
+    description: "SQLite database for message storage and bot state"
+    technology: "aiosqlite"
+    persistence: "Local file storage"
+
+notes:
+  - "The bot runs continuously in the background while serving HTTP endpoints"
+  - "All configuration can be provided via environment variables or config.json"
+  - "The service automatically handles reconnections and error recovery"
+  - "Health check verifies both HTTP server and Telegram bot connectivity"
