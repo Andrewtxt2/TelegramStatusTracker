@@ -123,6 +123,8 @@ Changelog:
 - July 08, 2025. Successfully configured Telegram MTProto API authentication
 - July 08, 2025. Activated automatic group monitoring for https://t.me/pereizdvyshneve
 - July 08, 2025. Full automation achieved - bot now automatically monitors group without manual forwarding
+- July 08, 2025. Implemented integrated system with approval buttons for admin workflow
+- July 08, 2025. All administrators configured and receiving messages with inline keyboard buttons
 ```
 
 ## User Preferences

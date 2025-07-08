@@ -18,10 +18,6 @@ args = "Telegram Bot Setup"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "telegram_bot_setup"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "auto_monitor"
 
 [[workflows.workflow]]
@@ -33,20 +29,12 @@ task = "shell.exec"
 args = "pip install python-telegram-bot>=20.0 aiohttp>=3.8.0 aiosqlite>=0.17.0 psutil>=5.9.0"
 
 [[workflows.workflow]]
-name = "telegram_bot_setup"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python simple_monitor.py"
-
-[[workflows.workflow]]
 name = "auto_monitor"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python3 simple_auto_monitor.py"
+args = "python3 integrated_bot.py"
 
 [deployment]
 deploymentTarget = "cloudrun"

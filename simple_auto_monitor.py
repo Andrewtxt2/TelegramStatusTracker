@@ -10,6 +10,7 @@ from telethon import TelegramClient, events
 from datetime import datetime
 from config import Config
 from logger import setup_logger
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 
 class SimpleAutoMonitor:
     def __init__(self):
@@ -53,8 +54,11 @@ class SimpleAutoMonitor:
             async def handle_message(event):
                 await self.process_message(event)
             
+            # Налаштування бота для обробки callback
+            self.bot = Bot(token=self.bot_token)
+            
             self.running = True
-            self.logger.info("Моніторинг активний")
+            self.logger.info("Моніторинг активний з підтримкою кнопок")
             
             # Головний цикл
             while self.running:
@@ -107,7 +111,7 @@ class SimpleAutoMonitor:
             self.logger.error(traceback.format_exc())
             
     async def send_to_bot(self, data):
-        """Відправка до бота"""
+        """Відправка до бота з кнопками схвалення"""
         try:
             admin_ids = self.config.admin_user_ids
             
@@ -118,7 +122,7 @@ class SimpleAutoMonitor:
 
 👤 **Від:** {data['sender_name']} (@{data['sender_username']})
 🕐 **Час:** {data['timestamp']}
-🤖 **Статус:** {status_emoji} {data['status'].upper()}
+🤖 **AI Аналіз:** {status_emoji} {data['status'].upper()}
 
 📝 **Текст:**
 {data['text']}
@@ -126,7 +130,24 @@ class SimpleAutoMonitor:
 ⚡ _Знайдено автоматично_
 """
 
-            # Відправка адміністраторам
+            # Створюємо унікальний ID для повідомлення
+            import time
+            message_id = int(time.time() * 1000) % 1000000
+            
+            # Кнопки схвалення
+            keyboard = {
+                "inline_keyboard": [
+                    [
+                        {"text": "✅ ВІДКРИТО", "callback_data": f"approve_open_{message_id}"},
+                        {"text": "❌ ЗАКРИТО", "callback_data": f"approve_closed_{message_id}"}
+                    ],
+                    [
+                        {"text": "🗑 ВІДХИЛИТИ", "callback_data": f"reject_{message_id}"}
+                    ]
+                ]
+            }
+
+            # Відправка адміністраторам з кнопками
             async with aiohttp.ClientSession() as session:
                 success_count = 0
                 for admin_id in admin_ids:
@@ -135,12 +156,13 @@ class SimpleAutoMonitor:
                         payload = {
                             'chat_id': admin_id,
                             'text': text,
-                            'parse_mode': 'Markdown'
+                            'parse_mode': 'Markdown',
+                            'reply_markup': keyboard
                         }
                         
                         async with session.post(url, json=payload) as resp:
                             if resp.status == 200:
-                                self.logger.info(f"Відправлено {admin_id}")
+                                self.logger.info(f"Відправлено з кнопками {admin_id}")
                                 success_count += 1
                             else:
                                 response_text = await resp.text()
@@ -149,7 +171,7 @@ class SimpleAutoMonitor:
                     except Exception as e:
                         self.logger.error(f"Помилка відправки {admin_id}: {e}")
                         
-                self.logger.info(f"Повідомлення відправлено {success_count} з {len(admin_ids)} адміністраторів")
+                self.logger.info(f"Повідомлення з кнопками відправлено {success_count} з {len(admin_ids)} адміністраторів")
                         
         except Exception as e:
             self.logger.error(f"Помилка відправки: {e}")
