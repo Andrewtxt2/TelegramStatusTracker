@@ -1,38 +1,59 @@
 #!/usr/bin/env python3
-"""
-Проста автентифікація з номером телефону
-"""
 import asyncio
-import os
+import sys
 from telethon import TelegramClient
+from telethon.errors import SessionPasswordNeededError
 
-async def simple_auth():
-    """Проста автентифікація"""
+async def authenticate():
+    api_id = 26886585
+    api_hash = "166e3719a0d93c12bf76af43fe91425f"
+    phone = "+380686850166"
+    
+    print(f"Автентифікація для: {phone}")
+    
+    client = TelegramClient('session', api_id, api_hash)
+    
     try:
-        api_id = int(os.getenv('TELEGRAM_API_ID'))
-        api_hash = os.getenv('TELEGRAM_API_HASH')
-        phone = '+380633952873'  # Номер телефону з попередньої автентифікації
+        await client.connect()
         
-        print("🔑 Автентифікація...")
+        if await client.is_user_authorized():
+            me = await client.get_me()
+            print(f"Вже авторизовано: {me.first_name}")
+            return True
         
-        client = TelegramClient('session', api_id, api_hash)
+        print("Відправка коду...")
+        await client.send_code_request(phone)
+        print(f"Код відправлено на {phone}")
         
-        # Підключаємось з номером телефону
-        await client.start(phone=phone)
+        code = input("Введіть код: ")
         
-        # Перевіряємо підключення
+        try:
+            await client.sign_in(phone, code)
+        except SessionPasswordNeededError:
+            password = input("Введіть пароль 2FA: ")
+            await client.sign_in(password=password)
+        
         me = await client.get_me()
-        print(f"✅ Підключено як: {me.first_name}")
+        print(f"Успішно авторизовано: {me.first_name}")
         
-        # Перевіряємо доступ до групи
-        entity = await client.get_entity('pereizdvyshneve')
-        print(f"✅ Група знайдена: {entity.title}")
+        # Перевірка групи
+        try:
+            entity = await client.get_entity('pereizdvyshneve')
+            print(f"Доступ до групи: {entity.title}")
+        except:
+            print("Група не знайдена, але авторизація успішна")
         
-        await client.disconnect()
-        print("✅ Автентифікація успішна!")
+        return True
         
     except Exception as e:
-        print(f"❌ Помилка: {e}")
+        print(f"Помилка: {e}")
+        return False
+    finally:
+        await client.disconnect()
 
 if __name__ == "__main__":
-    asyncio.run(simple_auth())
+    success = asyncio.run(authenticate())
+    if success:
+        print("Готово! Можна запускати моніторинг")
+    else:
+        print("Помилка автентифікації")
