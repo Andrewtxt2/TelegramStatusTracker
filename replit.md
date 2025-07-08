@@ -153,6 +153,8 @@ Changelog:
 - July 08, 2025. Daemon successfully connected to new group and is monitoring for messages
 - July 08, 2025. Fixed channel publishing bug - corrected target_channel_id property access (removed parentheses)
 - July 08, 2025. Channel publishing now works correctly when admins click approval buttons
+- July 08, 2025. Switched monitoring group back to https://t.me/pereizdvyshneve ("🚦Пекельні Ворота | Вишневе Переїзд")
+- July 08, 2025. Daemon successfully connected to original group and is ready for production monitoring
 ```
 
 ## User Preferences

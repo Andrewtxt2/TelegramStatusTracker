@@ -122,7 +122,7 @@ class DaemonMonitor:
             self.logger.info(f"✅ MTProto підключено: {me.first_name}")
             
             # Знаходження групи
-            entity = await self.client.get_entity('https://t.me/+VKjTwJXuZdc1MzBi')
+            entity = await self.client.get_entity('https://t.me/pereizdvyshneve')
             self.logger.info(f"✅ Група знайдена: {entity.title}")
             
             # Налаштування обробника
