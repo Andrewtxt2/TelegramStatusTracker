@@ -47,3 +47,6 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3 simple_auto_monitor.py"
+
+[deployment]
+deploymentTarget = "cloudrun"

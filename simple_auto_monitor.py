@@ -77,21 +77,25 @@ class SimpleAutoMonitor:
             if sender.bot:
                 return
                 
-            self.logger.info(f"Нове повідомлення від {sender.first_name}")
+            self.logger.info(f"Нове повідомлення від {sender.first_name}: {message.text[:50]}...")
             
             # Аналіз тексту
-            text = message.text.lower()
+            text = message.text.lower() if message.text else ""
             status = "невідомо"
             
-            if any(word in text for word in ['відкрито', 'открыто', 'доступно', 'работает']):
+            # Розширений аналіз ключових слів
+            open_keywords = ['відкрито', 'открыто', 'доступно', 'работает', 'открыт', 'доступен', 'працює', 'відкритий']
+            closed_keywords = ['закрито', 'закрыто', 'недоступно', 'не работает', 'закрыт', 'недоступен', 'не працює', 'закритий']
+            
+            if any(word in text for word in open_keywords):
                 status = "відкрито"
-            elif any(word in text for word in ['закрито', 'закрыто', 'недоступно', 'не работает']):
+            elif any(word in text for word in closed_keywords):
                 status = "закрито"
             
-            # Відправка до бота
+            # Відправка до бота (відправляємо всі повідомлення для перевірки)
             await self.send_to_bot({
-                'text': message.text,
-                'sender_name': sender.first_name,
+                'text': message.text or '[Повідомлення без тексту]',
+                'sender_name': sender.first_name or 'Невідомо',
                 'sender_username': sender.username or '',
                 'status': status,
                 'timestamp': datetime.now().isoformat()
@@ -99,6 +103,8 @@ class SimpleAutoMonitor:
             
         except Exception as e:
             self.logger.error(f"Помилка обробки: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             
     async def send_to_bot(self, data):
         """Відправка до бота"""
@@ -122,6 +128,7 @@ class SimpleAutoMonitor:
 
             # Відправка адміністраторам
             async with aiohttp.ClientSession() as session:
+                success_count = 0
                 for admin_id in admin_ids:
                     try:
                         url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
@@ -134,14 +141,20 @@ class SimpleAutoMonitor:
                         async with session.post(url, json=payload) as resp:
                             if resp.status == 200:
                                 self.logger.info(f"Відправлено {admin_id}")
+                                success_count += 1
                             else:
-                                self.logger.error(f"Помилка {admin_id}: {resp.status}")
+                                response_text = await resp.text()
+                                self.logger.error(f"Помилка {admin_id}: {resp.status} - {response_text}")
                                 
                     except Exception as e:
                         self.logger.error(f"Помилка відправки {admin_id}: {e}")
                         
+                self.logger.info(f"Повідомлення відправлено {success_count} з {len(admin_ids)} адміністраторів")
+                        
         except Exception as e:
             self.logger.error(f"Помилка відправки: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             
     async def stop(self):
         """Зупинка"""

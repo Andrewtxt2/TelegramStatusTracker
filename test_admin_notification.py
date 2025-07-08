@@ -1,39 +1,58 @@
 #!/usr/bin/env python3
 """
-Test script to verify admin notification system with new admins
+Тест відправки повідомлень адміністраторам
 """
 
 import asyncio
+import aiohttp
 from config import Config
-from bot_service import TelegramBotService
 
-async def test_admin_notifications():
-    """Test sending notifications to all admins"""
+async def test_admin_notification():
+    """Тест відправки повідомлень адміністраторам"""
     config = Config()
-    bot_service = TelegramBotService(config)
     
-    # Get all admin IDs
+    bot_token = config.bot_token
     admin_ids = config.admin_user_ids
-    print(f"Configured admin IDs: {admin_ids}")
     
-    # Create test message
+    print(f"Bot token: {bot_token[:10]}..." if bot_token else "Bot token відсутній")
+    print(f"Admin IDs: {admin_ids}")
+    
     test_message = """
-🔔 **Тест повідомлень для адміністраторів**
+🔄 **ТЕСТ АВТОМАТИЧНОГО МОНІТОРИНГУ**
 
-✅ ID адміністраторів: 564704015, 7766810783
-✅ Система сповіщень працює
-✅ Всі адміністратори отримають це повідомлення
+👤 **Від:** Тест користувач
+🕐 **Час:** 2025-07-08 10:50:00
+🤖 **Статус:** 🟢 ВІДКРИТО
 
-🤖 Бот готовий до роботи!
+📝 **Текст:**
+Тестове повідомлення для перевірки роботи автоматичного моніторингу
+
+⚡ _Це тестове повідомлення_
 """
-    
-    try:
-        # Send notification to all admins
-        await bot_service.notify_admin(test_message)
-        print("✅ Test notification sent successfully!")
-        
-    except Exception as e:
-        print(f"❌ Error sending notification: {e}")
+
+    async with aiohttp.ClientSession() as session:
+        for admin_id in admin_ids:
+            try:
+                url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                payload = {
+                    'chat_id': admin_id,
+                    'text': test_message,
+                    'parse_mode': 'Markdown'
+                }
+                
+                print(f"Відправка тестового повідомлення адміністратору {admin_id}...")
+                
+                async with session.post(url, json=payload) as resp:
+                    response_text = await resp.text()
+                    
+                    if resp.status == 200:
+                        print(f"✅ Успішно відправлено {admin_id}")
+                    else:
+                        print(f"❌ Помилка {admin_id}: {resp.status}")
+                        print(f"Відповідь: {response_text}")
+                        
+            except Exception as e:
+                print(f"❌ Помилка відправки {admin_id}: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(test_admin_notifications())
+    asyncio.run(test_admin_notification())
