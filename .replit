@@ -5,7 +5,7 @@ channel = "stable-24_05"
 packages = ["openssl"]
 
 [workflows]
-runButton = "Fixed Bot Start"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -19,6 +19,10 @@ args = "Telegram Bot Setup"
 [[workflows.workflow.tasks]]
 task = "workflow.run"
 args = "telegram_bot_app"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Clean Monitor Service"
 
 [[workflows.workflow]]
 name = "Telegram Bot Setup"
@@ -100,6 +104,14 @@ args = "sleep 3"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3 app.py"
+
+[[workflows.workflow]]
+name = "Clean Monitor Service"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd /home/runner/workspace && python3 clean_monitor.py"
 
 [deployment]
 deploymentTarget = "cloudrun"
