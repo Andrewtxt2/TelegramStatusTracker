@@ -286,43 +286,38 @@ class IntegratedBotRunner:
     async def approve_message(self, query, message_data, status):
         """Approve and forward message to target channel"""
         try:
-            target_channel_id = self.config.target_channel_id
+            target_channel_id = self.config.target_channel_id or "@kryuvysh"
             
-            if not target_channel_id:
-                await query.edit_message_text("❌ Цільовий канал не налаштований")
-                return
-                
-            # Format message for channel
-            status_emoji = "🟢" if status == "open" else "🔴"
-            status_text = "ВІДКРИТО" if status == "open" else "ЗАКРИТО"
+            # Format message for channel with requested format
+            status_emoji = "✅" if status == "open" else "❌"
+            status_text = "Відкрито" if status == "open" else "Закрито"
+            current_time = datetime.now().strftime('%H:%M')
             
             channel_text = f"""
-{status_emoji} **ПЕРЕЇЗД {status_text}**
+{status_emoji} {status_text}
+🕓 {current_time}
 
 {message_data['text']}
-
-📅 {datetime.now().strftime('%d.%m.%Y %H:%M')}
-✅ Затверджено адміністратором
 """
 
             # Publish to channel
             try:
                 await self.bot.send_message(
                     chat_id=target_channel_id,
-                    text=channel_text,
-                    parse_mode='Markdown'
+                    text=channel_text.strip()
                 )
                 
                 # Update admin message
                 await query.edit_message_text(
-                    f"✅ **ЗАТВЕРДЖЕНО: {status_text}**\n\nОпубліковано в канал",
+                    f"✅ **ОПУБЛІКОВАНО: {status_text.upper()}**\n\nВідправлено в канал @kryuvysh\n🕓 {current_time}",
                     parse_mode='Markdown'
                 )
                 
-                self.logger.info(f"Повідомлення затверджено як '{status_text}' та опубліковано")
+                self.logger.info(f"Повідомлення затверджено як '{status_text}' та опубліковано о {current_time}")
                 
             except Exception as e:
-                await query.edit_message_text(f"❌ Помилка публікації: {e}")
+                error_text = str(e)
+                await query.edit_message_text(f"❌ Помилка публікації: {error_text}")
                 self.logger.error(f"Помилка публікації в канал: {e}")
                 
         except Exception as e:
