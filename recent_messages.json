@@ -1,13 +1,5 @@
 [
   {
-    "original_message_id": 1011,
-    "text": "Проїзд вільний",
-    "sender_name": "Сергій",
-    "sender_username": "sergiy_user",
-    "status": "відкрито",
-    "timestamp": "2025-07-08T14:05:42.462856+03:00"
-  },
-  {
     "original_message_id": 1012,
     "text": "Переїзд тимчасово закрито",
     "sender_name": "Наталія",
@@ -110,5 +102,13 @@
     "sender_username": "Vyachesl_av",
     "status": "невідомо",
     "timestamp": "2025-07-08T17:30:44.843290"
+  },
+  {
+    "original_message_id": 37237,
+    "text": "Відкрито?",
+    "sender_name": "Люда",
+    "sender_username": "herotijuana",
+    "status": "відкрито",
+    "timestamp": "2025-07-08T17:41:40.320652"
   }
 ]
