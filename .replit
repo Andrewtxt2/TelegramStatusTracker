@@ -5,7 +5,7 @@ channel = "stable-24_05"
 packages = ["openssl"]
 
 [workflows]
-runButton = "Project"
+runButton = "Fixed Bot Start"
 
 [[workflows.workflow]]
 name = "Project"
@@ -79,6 +79,27 @@ author = "agent"
 task = "shell.exec"
 args = "python3 app.py"
 waitForPort = 80
+
+[[workflows.workflow]]
+name = "Fixed Bot Start"
+author = 43506130
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f python3 || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f app.py || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "sleep 3"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 app.py"
 
 [deployment]
 deploymentTarget = "cloudrun"

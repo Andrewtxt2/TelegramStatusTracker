@@ -44,13 +44,26 @@ class IntegratedBotRunner:
     async def start_polling(self):
         """Запуск polling для callback queries"""
         try:
+            # Перевірка чи не запущено вже polling
+            if self.application.updater.running:
+                self.logger.warning("Polling вже запущено")
+                return
+                
             await self.application.updater.start_polling(
                 drop_pending_updates=True,
-                allowed_updates=["callback_query"]
+                allowed_updates=["callback_query"],
+                timeout=10
             )
             self.logger.info("Polling для callback запущено")
         except Exception as e:
             self.logger.error(f"Помилка polling: {e}")
+            # Спробуємо перезапустити через деякий час
+            await asyncio.sleep(5)
+            if not self.application.updater.running:
+                try:
+                    await self.start_polling()
+                except Exception as retry_e:
+                    self.logger.error(f"Повторна помилка polling: {retry_e}")
             
     async def start(self):
         """Start both bot service and Telegram client monitoring"""
@@ -278,7 +291,18 @@ class IntegratedBotRunner:
         """Handle admin button callbacks"""
         try:
             query = update.callback_query
-            await query.answer()
+            
+            if not query or not query.data:
+                self.logger.error("Порожній callback query")
+                return
+                
+            # Відповідаємо на callback швидко
+            try:
+                await asyncio.wait_for(query.answer(), timeout=5.0)
+            except asyncio.TimeoutError:
+                self.logger.warning("Таймаут відповіді на callback")
+            except Exception as e:
+                self.logger.error(f"Помилка відповіді на callback: {e}")
             
             data = query.data
             user_id = query.from_user.id
@@ -290,38 +314,82 @@ class IntegratedBotRunner:
             admin_ids = self.config.admin_user_ids
             if user_id not in admin_ids:
                 self.logger.warning(f"❌ Неавторизований callback від {user_id}")
-                await query.edit_message_text("❌ У вас немає прав адміністратора")
+                try:
+                    await query.edit_message_text("❌ У вас немає прав адміністратора")
+                except Exception as e:
+                    self.logger.error(f"Помилка редагування повідомлення: {e}")
                 return
                 
             self.logger.info(f"✅ Авторизований callback від адміністратора {user_name} ({user_id}): {data}")
             
             # Parse callback data
             parts = data.split('_')
-            if len(parts) < 3:
-                await query.edit_message_text("❌ Помилка даних callback")
+            if len(parts) < 2:
+                try:
+                    await query.edit_message_text("❌ Помилка даних callback")
+                except Exception as e:
+                    self.logger.error(f"Помилка редагування повідомлення: {e}")
                 return
                 
             action = parts[0]
-            status = parts[1] if len(parts) > 2 else ""
-            message_id = parts[-1]
-            
-            # Load original message data
-            message_data = await self.load_message_data(message_id)
-            if not message_data:
-                await query.edit_message_text("❌ Дані повідомлення не знайдено")
-                return
             
             if action == "approve":
+                if len(parts) < 3:
+                    try:
+                        await query.edit_message_text("❌ Помилка даних callback")
+                    except Exception as e:
+                        self.logger.error(f"Помилка редагування повідомлення: {e}")
+                    return
+                status = parts[1]
+                message_id = parts[2]
+                
+                # Load original message data
+                message_data = await self.load_message_data(message_id)
+                if not message_data:
+                    try:
+                        await query.edit_message_text("❌ Дані повідомлення не знайдено")
+                    except Exception as e:
+                        self.logger.error(f"Помилка редагування повідомлення: {e}")
+                    return
+                
                 await self.approve_message(query, message_data, status)
+                
             elif action == "reject":
+                if len(parts) < 2:
+                    try:
+                        await query.edit_message_text("❌ Помилка даних callback")
+                    except Exception as e:
+                        self.logger.error(f"Помилка редагування повідомлення: {e}")
+                    return
+                message_id = parts[1]
+                
+                # Load original message data
+                message_data = await self.load_message_data(message_id)
+                if not message_data:
+                    try:
+                        await query.edit_message_text("❌ Дані повідомлення не знайдено")
+                    except Exception as e:
+                        self.logger.error(f"Помилка редагування повідомлення: {e}")
+                    return
+                
                 await self.reject_message(query, message_data)
             else:
-                await query.edit_message_text("❌ Невідома дія")
+                try:
+                    await query.edit_message_text("❌ Невідома дія")
+                except Exception as e:
+                    self.logger.error(f"Помилка редагування повідомлення: {e}")
                 
         except Exception as e:
             self.logger.error(f"Помилка обробки callback: {e}")
             import traceback
             self.logger.error(traceback.format_exc())
+            
+            # Спробуємо відповісти користувачу про помилку
+            try:
+                if 'query' in locals() and query:
+                    await query.edit_message_text(f"❌ Сталася помилка: {str(e)[:100]}")
+            except Exception:
+                pass
             
     async def approve_message(self, query, message_data, status):
         """Approve and forward message to target channel"""
@@ -433,23 +501,32 @@ class IntegratedBotRunner:
             if self.polling_task and not self.polling_task.done():
                 self.polling_task.cancel()
                 try:
-                    await self.polling_task
-                except asyncio.CancelledError:
+                    await asyncio.wait_for(self.polling_task, timeout=5.0)
+                except (asyncio.CancelledError, asyncio.TimeoutError):
                     pass
                 except Exception as e:
                     self.logger.error(f"Помилка зупинки polling task: {e}")
             
-            if self.application and self.application.updater:
+            # Зупиняємо application з таймаутом
+            if self.application:
                 try:
-                    await self.application.updater.stop()
-                    await self.application.stop()
-                    await self.application.shutdown()
+                    if hasattr(self.application, 'updater') and self.application.updater:
+                        if self.application.updater.running:
+                            await asyncio.wait_for(self.application.updater.stop(), timeout=10.0)
+                        await asyncio.wait_for(self.application.stop(), timeout=5.0)
+                        await asyncio.wait_for(self.application.shutdown(), timeout=5.0)
+                except asyncio.TimeoutError:
+                    self.logger.warning("Таймаут зупинки application")
                 except Exception as e:
                     self.logger.error(f"Помилка зупинки application: {e}")
                 
-            if self.client and self.client.is_connected():
+            # Зупиняємо client з таймаутом
+            if self.client:
                 try:
-                    await self.client.disconnect()
+                    if self.client.is_connected():
+                        await asyncio.wait_for(self.client.disconnect(), timeout=5.0)
+                except asyncio.TimeoutError:
+                    self.logger.warning("Таймаут зупинки client")
                 except Exception as e:
                     self.logger.error(f"Помилка зупинки client: {e}")
                 

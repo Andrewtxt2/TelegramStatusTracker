@@ -101,16 +101,29 @@ class TelegramBotApp:
     async def start_web_server(self):
         """Start the web server"""
         try:
-            port = int(os.getenv('PORT', 80))
-            self.logger.info(f"Starting web server on port {port}")
-
+            # Спробуємо різні порти, якщо 80 зайнятий
+            preferred_ports = [int(os.getenv('PORT', 5000)), 5000, 3000, 8000, 8080]
+            
             runner = web.AppRunner(self.app)
             await runner.setup()
-
-            site = web.TCPSite(runner, '0.0.0.0', port)
-            await site.start()
-
-            self.logger.info(f"Web server started on port {port}")
+            
+            site = None
+            for port in preferred_ports:
+                try:
+                    site = web.TCPSite(runner, '0.0.0.0', port)
+                    await site.start()
+                    self.logger.info(f"Web server started on port {port}")
+                    break
+                except OSError as e:
+                    if "address already in use" in str(e).lower():
+                        self.logger.warning(f"Port {port} already in use, trying next...")
+                        continue
+                    else:
+                        raise
+            
+            if site is None:
+                raise Exception("Could not bind to any available port")
+                
             return runner
 
         except Exception as e:
