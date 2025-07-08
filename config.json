@@ -1,8 +1,11 @@
 {
   "bot_token": "",
   "source_group_id": 0,
+  "source_group_link": "https://t.me/pereizdvyshneve",
   "admin_group_id": 0,
+  "admin_group_link": "https://t.me/+VKjTwJXuZdc1MzBi",
   "target_channel_id": 0,
+  "target_channel_link": "https://t.me/kryuvysh",
   "admin_user_id": 0,
   "additional_admin_ids": [],
   "database_path": "bot_data.db",
