@@ -1,46 +1,41 @@
 #!/usr/bin/env python3
 """
-Швидка автентифікація з кодом
+Швидка автентифікація для відновлення сесії
 """
 import asyncio
-import sys
+import os
 from telethon import TelegramClient
 
-async def quick_auth(code):
-    client = TelegramClient('session', 26886585, '166e3719a0d93c12bf76af43fe91425f')
-    await client.connect()
-    
-    phone = '+380686850166'
-    
+async def quick_auth():
+    """Швидка автентифікація"""
     try:
-        # Отримуємо новий код
-        sent = await client.send_code_request(phone)
-        print(f'Код відправлено на {phone}')
+        api_id = int(os.getenv('TELEGRAM_API_ID'))
+        api_hash = os.getenv('TELEGRAM_API_HASH')
         
-        # Використовуємо код
-        await client.sign_in(phone, code, phone_code_hash=sent.phone_code_hash)
-        print('✅ Авторизація успішна!')
+        print("🔐 Створення нової сесії...")
+        client = TelegramClient('session', api_id, api_hash)
         
+        # Автентифікація
+        await client.start(phone='+380633952873')
+        
+        print("✅ Автентифікація успішна!")
+        
+        # Тест підключення
         me = await client.get_me()
-        print(f'Авторизований як: {me.first_name}')
+        print(f"✅ Підключено як: {me.first_name}")
+        
+        # Тест доступу до групи
+        try:
+            entity = await client.get_entity('pereizdvyshneve')
+            print(f"✅ Доступ до групи: {entity.title}")
+        except Exception as e:
+            print(f"❌ Помилка доступу до групи: {e}")
         
         await client.disconnect()
-        return True
+        print("✅ Сесія збережена")
         
     except Exception as e:
-        print(f'❌ Помилка авторизації: {e}')
-        await client.disconnect()
-        return False
+        print(f"❌ Помилка автентифікації: {e}")
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Використання: python3 quick_auth.py <код>")
-        sys.exit(1)
-    
-    code = sys.argv[1]
-    result = asyncio.run(quick_auth(code))
-    
-    if result:
-        print("\n🚀 Готово! Тепер можна запустити бота.")
-    else:
-        print("\n❌ Спробуйте ще раз з новим кодом.")
+    asyncio.run(quick_auth())

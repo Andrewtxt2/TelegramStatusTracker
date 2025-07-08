@@ -1,57 +1,69 @@
-
 #!/usr/bin/env python3
 """
-Відправка простого тестового повідомлення
+Відправка тестового повідомлення через Bot API
 """
-
 import asyncio
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
-from config import Config
+import os
+from telegram import Bot
 
-async def send_simple_test():
-    """Відправити просте тестове повідомлення"""
-    config = Config()
-    bot = Bot(token=config.bot_token)
-    
-    # Адміністратори
-    admin_ids = [537827257, 6395626140, 564704015, 7766810783]
-    
-    # Простий текст без складного форматування
-    test_message = """🔄 ТЕСТ СИСТЕМИ
+async def send_test_message():
+    """Відправка тестового повідомлення через бота"""
+    try:
+        # Отримання токену з конфігурації
+        import json
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+        
+        bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+        if not bot_token:
+            print("❌ Токен бота не знайдено в змінних середовища")
+            return
+        
+        bot = Bot(token=bot_token)
+        
+        # Відправка в адмін-групу (симулюючи повідомлення з групи)
+        admin_group = os.getenv('TELEGRAM_ADMIN_GROUP', '@pereyizd_bot')
+        
+        test_message = """🧪 ТЕСТОВЕ ПОВІДОМЛЕННЯ
+        
+📍 Джерело: Група моніторингу
+📝 Текст: Переїзд ВІДКРИТО зараз о 21:53
 
-👤 Від: Тест користувач
-🕐 Час: зараз
-🤖 Статус: відкрито
+🤖 Аналіз AI:
+✅ Статус: ВІДКРИТО
+📊 Упевненість: 95%
 
-📝 Текст: Тестове повідомлення для перевірки
-
-Натисніть кнопку для тесту:"""
-
-    # Кнопки
-    keyboard = InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("✅ ВІДКРИТО", callback_data="approve_open_test123"),
-            InlineKeyboardButton("❌ ЗАКРИТО", callback_data="approve_closed_test123")
-        ],
-        [
-            InlineKeyboardButton("🗑 ВІДХИЛИТИ", callback_data="reject_test123")
+Оберіть дію:"""
+        
+        # Клавіатура для адміністраторів
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ ВІДКРИТО", callback_data="approve_open_test"),
+                InlineKeyboardButton("❌ ЗАКРИТО", callback_data="approve_closed_test")
+            ],
+            [InlineKeyboardButton("🗑 ВІДХИЛИТИ", callback_data="reject_test")]
         ]
-    ])
-    
-    success_count = 0
-    for admin_id in admin_ids:
-        try:
-            await bot.send_message(
-                chat_id=admin_id,
-                text=test_message,
-                reply_markup=keyboard
-            )
-            print(f"✅ Відправлено адміністратору {admin_id}")
-            success_count += 1
-        except Exception as e:
-            print(f"❌ Помилка для {admin_id}: {e}")
-    
-    print(f"\n✅ Успішно відправлено {success_count} з {len(admin_ids)} адміністраторів")
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Відправка повідомлення адміністраторам
+        admin_ids = [564704015, 7766810783]
+        
+        for admin_id in admin_ids:
+            try:
+                await bot.send_message(
+                    chat_id=admin_id,
+                    text=test_message,
+                    reply_markup=reply_markup,
+                    parse_mode='HTML'
+                )
+                print(f"✅ Тестове повідомлення відправлено адміністратору {admin_id}")
+            except Exception as e:
+                print(f"❌ Помилка відправки адміністратору {admin_id}: {e}")
+        
+    except Exception as e:
+        print(f"❌ Загальна помилка: {e}")
 
 if __name__ == "__main__":
-    asyncio.run(send_simple_test())
+    asyncio.run(send_test_message())
