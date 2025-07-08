@@ -15,7 +15,7 @@ from datetime import datetime
 
 # Import your bot components
 from config import Config
-from integrated_bot import IntegratedBotService
+from integrated_bot import IntegratedBotRunner
 from logger import setup_logger
 
 class TelegramBotApp:
@@ -52,8 +52,8 @@ class TelegramBotApp:
             }
 
             # Check bot service health
-            if self.bot_service and hasattr(self.bot_service, 'is_running'):
-                health_data["bot_running"] = self.bot_service.is_running()
+            if self.bot_service and hasattr(self.bot_service, 'running'):
+                health_data["bot_running"] = self.bot_service.running
             else:
                 health_data["bot_running"] = False
 
@@ -91,7 +91,7 @@ class TelegramBotApp:
         """Start the Telegram bot service"""
         try:
             self.logger.info("Starting Telegram Bot Service...")
-            self.bot_service = IntegratedBotService(self.config)
+            self.bot_service = IntegratedBotRunner()
             await self.bot_service.start()
             self.logger.info("Telegram Bot Service started successfully")
         except Exception as e:
@@ -143,7 +143,7 @@ class TelegramBotApp:
             finally:
                 # Cleanup
                 if self.bot_service:
-                    await self.bot_service.stop()
+                    await self.bot_service.shutdown()
                 await runner.cleanup()
 
         except Exception as e:
