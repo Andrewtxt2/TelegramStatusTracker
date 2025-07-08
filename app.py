@@ -15,7 +15,7 @@ from datetime import datetime
 
 # Import your bot components
 from config import Config
-from integrated_bot import IntegratedBotRunner
+# Removed IntegratedBotRunner import - using CleanMonitor instead
 from logger import setup_logger
 
 class TelegramBotApp:
@@ -91,7 +91,8 @@ class TelegramBotApp:
         """Start the Telegram bot service"""
         try:
             self.logger.info("Starting Telegram Bot Service...")
-            self.bot_service = IntegratedBotRunner()
+            from clean_monitor import CleanMonitor
+            self.bot_service = CleanMonitor()
             await self.bot_service.start()
             self.logger.info("Telegram Bot Service started successfully")
         except Exception as e:
@@ -101,8 +102,8 @@ class TelegramBotApp:
     async def start_web_server(self):
         """Start the web server"""
         try:
-            # Спробуємо різні порти, якщо 80 зайнятий
-            preferred_ports = [int(os.getenv('PORT', 5000)), 5000, 3000, 8000, 8080]
+            # Використовуємо порт 80 для Cloud Run
+            preferred_ports = [80]
             
             runner = web.AppRunner(self.app)
             await runner.setup()
