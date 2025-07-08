@@ -5,7 +5,7 @@ channel = "stable-24_05"
 packages = ["openssl"]
 
 [workflows]
-runButton = "Start Bot"
+runButton = "Auth Window"
 
 [[workflows.workflow]]
 name = "Project"
