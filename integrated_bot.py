@@ -294,7 +294,9 @@ class IntegratedBotRunner:
             current_time = datetime.now().strftime('%H:%M')
             
             channel_text = f"""{status_emoji} {status_text}
-🕓 {current_time}"""
+🕓 {current_time}
+
+🔗 https://t.me/pereizdvyshneve"""
 
             # Publish to channel
             try:
