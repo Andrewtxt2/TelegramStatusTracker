@@ -64,8 +64,25 @@ class Config:
                     except ValueError:
                         self.logger.warning(f"Invalid numeric value for {env_var}: {env_value}")
                         continue
+                elif config_key == 'additional_admin_ids':
+                    # Handle comma-separated admin IDs from environment
+                    try:
+                        env_value = [int(id.strip()) for id in env_value.split(',') if id.strip()]
+                    except ValueError:
+                        self.logger.warning(f"Invalid format for {env_var}: {env_value}")
+                        continue
                         
-                self.config_data[config_key] = env_value
+                # Don't overwrite config file values with environment values for additional_admin_ids
+                if config_key == 'additional_admin_ids' and self.config_data.get(config_key):
+                    # Merge environment and config file admin IDs
+                    existing_ids = self.config_data.get(config_key, [])
+                    if isinstance(existing_ids, list):
+                        combined_ids = list(set(existing_ids + env_value))
+                        self.config_data[config_key] = combined_ids
+                    else:
+                        self.config_data[config_key] = env_value
+                else:
+                    self.config_data[config_key] = env_value
                 self.logger.debug(f"Config {config_key} set from environment variable {env_var}")
                 
     @property
@@ -151,7 +168,7 @@ class Config:
         if primary_id and primary_id != 0:
             ids.append(primary_id)
         
-        # Additional admins
+        # Additional admins from config file
         additional_ids = self.config_data.get('additional_admin_ids', [])
         if isinstance(additional_ids, str):
             # Handle comma-separated string
@@ -161,7 +178,15 @@ class Config:
                 self.logger.warning("Invalid format for additional_admin_ids")
                 additional_ids = []
         elif isinstance(additional_ids, list):
-            additional_ids = [int(id) for id in additional_ids if str(id).isdigit()]
+            # Convert to integers, filtering out invalid values
+            valid_ids = []
+            for id_val in additional_ids:
+                try:
+                    if isinstance(id_val, (int, str)) and str(id_val).isdigit():
+                        valid_ids.append(int(id_val))
+                except (ValueError, TypeError):
+                    continue
+            additional_ids = valid_ids
         
         ids.extend(additional_ids)
         

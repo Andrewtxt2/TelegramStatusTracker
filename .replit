@@ -34,4 +34,4 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python integrated_bot.py"
+args = "python simple_monitor.py"

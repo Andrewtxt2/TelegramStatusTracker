@@ -116,7 +116,10 @@ The system uses an event-driven architecture with async/await patterns for handl
 
 ```
 Changelog:
-- July 08, 2025. Initial setup
+- July 08, 2025. Initial setup with 24/7 bot service
+- July 08, 2025. Added multiple administrators support (IDs: 564704015, 7766810783)
+- July 08, 2025. Enhanced configuration system to merge config file and environment variables
+- July 08, 2025. Bot successfully deployed and running with AI analysis and approval workflow
 ```
 
 ## User Preferences

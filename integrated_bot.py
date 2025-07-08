@@ -28,18 +28,10 @@ class IntegratedBotRunner:
         try:
             self.logger.info("Starting Integrated Telegram Bot System...")
             
-            # Check if API credentials are available
-            api_id = os.getenv('TELEGRAM_API_ID')
-            api_hash = os.getenv('TELEGRAM_API_HASH')
-            
-            if api_id and api_hash:
-                self.logger.info("API credentials found, starting with MTProto monitoring")
-                # Start both bot and client
-                await self.start_with_api_monitoring()
-            else:
-                self.logger.info("No API credentials, starting bot-only mode")
-                # Start only bot service
-                await self.start_bot_only()
+            # Start in bot-only mode for stability
+            # MTProto API integration will be added later after manual authentication
+            self.logger.info("Starting bot-only mode with enhanced features")
+            await self.start_bot_only()
                 
         except Exception as e:
             self.logger.error(f"Error starting integrated system: {e}")
