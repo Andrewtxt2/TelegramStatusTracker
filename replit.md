@@ -128,6 +128,7 @@ Changelog:
 - July 08, 2025. Finalized publication format: status + time only (e.g., "✅ Відкрито 🕓 11:17")
 - July 08, 2025. Configured GMT+2 timezone and admin-controlled status logic  
 - July 08, 2025. Updated to GMT+3 timezone and added recent 14 messages context for admins
+- July 08, 2025. Implemented persistent message history storage and loading for continuous context
 ```
 
 ## User Preferences

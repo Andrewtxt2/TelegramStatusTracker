@@ -1,0 +1,114 @@
+[
+  {
+    "original_message_id": 1001,
+    "text": "Переїзд працює нормально",
+    "sender_name": "Олександр",
+    "sender_username": "alex_user",
+    "status": "відкрито",
+    "timestamp": "2025-07-08T09:50:42.462804+03:00"
+  },
+  {
+    "original_message_id": 1002,
+    "text": "Затримка на переїзді, треба чекати",
+    "sender_name": "Марія",
+    "sender_username": "maria_user",
+    "status": "закрито",
+    "timestamp": "2025-07-08T10:20:42.462821+03:00"
+  },
+  {
+    "original_message_id": 1003,
+    "text": "Все відкрито, можна їхати",
+    "sender_name": "Петро",
+    "sender_username": "petro_user",
+    "status": "відкрито",
+    "timestamp": "2025-07-08T10:50:42.462827+03:00"
+  },
+  {
+    "original_message_id": 1004,
+    "text": "Ремонт на переїзді, заборонено проїзд",
+    "sender_name": "Інна",
+    "sender_username": "inna_user",
+    "status": "закрито",
+    "timestamp": "2025-07-08T11:05:42.462831+03:00"
+  },
+  {
+    "original_message_id": 1005,
+    "text": "Проїзд відновлено",
+    "sender_name": "Андрій",
+    "sender_username": "andrey_user",
+    "status": "відкрито",
+    "timestamp": "2025-07-08T11:50:42.462834+03:00"
+  },
+  {
+    "original_message_id": 1006,
+    "text": "Технічні роботи на переїзді",
+    "sender_name": "Оксана",
+    "sender_username": "oksana_user",
+    "status": "закрито",
+    "timestamp": "2025-07-08T12:20:42.462839+03:00"
+  },
+  {
+    "original_message_id": 1007,
+    "text": "Переїзд відкритий для проїзду",
+    "sender_name": "Дмитро",
+    "sender_username": "dmitro_user",
+    "status": "відкрито",
+    "timestamp": "2025-07-08T12:50:42.462844+03:00"
+  },
+  {
+    "original_message_id": 1008,
+    "text": "Аварійна ситуація, переїзд закрито",
+    "sender_name": "Світлана",
+    "sender_username": "svitlana_user",
+    "status": "закрито",
+    "timestamp": "2025-07-08T13:05:42.462848+03:00"
+  },
+  {
+    "original_message_id": 1009,
+    "text": "Все норм, їздимо",
+    "sender_name": "Василь",
+    "sender_username": "vasyl_user",
+    "status": "відкрито",
+    "timestamp": "2025-07-08T13:20:42.462851+03:00"
+  },
+  {
+    "original_message_id": 1010,
+    "text": "Черга на переїзді",
+    "sender_name": "Юлія",
+    "sender_username": "yulia_user",
+    "status": "закрито",
+    "timestamp": "2025-07-08T13:50:42.462854+03:00"
+  },
+  {
+    "original_message_id": 1011,
+    "text": "Проїзд вільний",
+    "sender_name": "Сергій",
+    "sender_username": "sergiy_user",
+    "status": "відкрито",
+    "timestamp": "2025-07-08T14:05:42.462856+03:00"
+  },
+  {
+    "original_message_id": 1012,
+    "text": "Переїзд тимчасово закрито",
+    "sender_name": "Наталія",
+    "sender_username": "natalia_user",
+    "status": "закрито",
+    "timestamp": "2025-07-08T14:20:42.462859+03:00"
+  },
+  {
+    "original_message_id": 1013,
+    "text": "Відкрито для руху",
+    "sender_name": "Віталій",
+    "sender_username": "vitaliy_user",
+    "status": "відкрито",
+    "timestamp": "2025-07-08T14:35:42.462861+03:00"
+  },
+  {
+    "original_message_id": 1014,
+    "text": "Стоять вагони, переїзд заблоковано",
+    "sender_name": "Катерина",
+    "sender_username": "kateryna_user",
+    "status": "закрито",
+    "timestamp": "2025-07-08T14:45:42.462864+03:00"
+  }
+]

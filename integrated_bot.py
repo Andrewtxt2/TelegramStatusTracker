@@ -37,11 +37,15 @@ class IntegratedBotRunner:
         self.application = None
         self.running = False
         self.recent_messages = []  # Store last 14 messages
+        self.message_history_file = "recent_messages.json"
         
     async def start(self):
         """Start both bot service and Telegram client monitoring"""
         try:
             self.logger.info("Запуск інтегрованої системи...")
+            
+            # Load previous messages
+            await self.load_recent_messages()
             
             await self.start_with_api_monitoring()
             
@@ -155,6 +159,9 @@ class IntegratedBotRunner:
             self.recent_messages.append(message_data)
             if len(self.recent_messages) > 14:
                 self.recent_messages.pop(0)
+            
+            # Save updated messages
+            await self.save_recent_messages()
             
             admin_ids = self.config.admin_user_ids
             
@@ -366,6 +373,37 @@ class IntegratedBotRunner:
             
         except Exception as e:
             self.logger.critical(f"Не вдалося відновити: {e}")
+            
+    async def load_recent_messages(self):
+        """Load recent messages from file"""
+        try:
+            import json
+            import os
+            
+            if os.path.exists(self.message_history_file):
+                with open(self.message_history_file, "r", encoding="utf-8") as f:
+                    self.recent_messages = json.load(f)
+                    
+                self.logger.info(f"Завантажено {len(self.recent_messages)} попередніх повідомлень")
+            else:
+                self.logger.info("Файл історії повідомлень не знайдено, починаємо з порожньої історії")
+                
+        except Exception as e:
+            self.logger.error(f"Помилка завантаження історії повідомлень: {e}")
+            self.recent_messages = []
+            
+    async def save_recent_messages(self):
+        """Save recent messages to file"""
+        try:
+            import json
+            
+            with open(self.message_history_file, "w", encoding="utf-8") as f:
+                json.dump(self.recent_messages, f, ensure_ascii=False, indent=2)
+                
+            self.logger.debug(f"Збережено {len(self.recent_messages)} повідомлень в історію")
+            
+        except Exception as e:
+            self.logger.error(f"Помилка збереження історії повідомлень: {e}")
             
     async def shutdown(self):
         """Gracefully shutdown all services"""
