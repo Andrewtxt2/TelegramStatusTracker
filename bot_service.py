@@ -78,20 +78,32 @@ class TelegramBotService:
                 
     def register_handlers(self):
         """Register all bot handlers"""
-        # Message handler for source group
+        # Message handler for source group or forwarded messages
         source_chat_id = self.config.source_group_id
+        admin_ids = self.config.admin_user_ids
+        
         if source_chat_id and source_chat_id != 0:
+            # Direct monitoring of source group (if bot is member)
             message_handler = MessageHandler(
                 filters.Chat(chat_id=source_chat_id) & filters.TEXT,
                 self.handle_source_message
             )
-        else:
-            # If no source group configured, handle all messages (for testing)
-            message_handler = MessageHandler(
-                filters.TEXT & ~filters.COMMAND,
-                self.handle_source_message
+            self.application.add_handler(message_handler)
+        
+        # Handle forwarded messages from admins
+        if admin_ids:
+            forwarded_handler = MessageHandler(
+                filters.User(user_id=admin_ids) & filters.FORWARDED & filters.TEXT,
+                self.handle_forwarded_message
             )
-        self.application.add_handler(message_handler)
+            self.application.add_handler(forwarded_handler)
+        
+        # Handle direct messages from admins with specific commands
+        direct_handler = MessageHandler(
+            filters.User(user_id=admin_ids) & filters.TEXT & ~filters.COMMAND & ~filters.FORWARDED,
+            self.handle_direct_message
+        )
+        self.application.add_handler(direct_handler)
         
         # Callback query handler for admin buttons
         callback_handler = CallbackQueryHandler(self.handle_admin_callback)
@@ -137,6 +149,90 @@ class TelegramBotService:
         except Exception as e:
             self.logger.error(f"Error handling source message: {e}")
             await self.handle_error(None, context, e)
+    
+    async def handle_forwarded_message(self, update: Update, context):
+        """Handle forwarded messages from admins"""
+        try:
+            message = update.message
+            if not message or not message.text:
+                return
+                
+            self.logger.info(f"Received forwarded message from admin: {message.from_user.id}")
+            
+            # Check if message was forwarded from the source group
+            if message.forward_from_chat:
+                forward_from = message.forward_from_chat.username or str(message.forward_from_chat.id)
+                source_group = str(self.config.source_group_id).replace('@', '')
+                
+                if source_group in forward_from or 'pereizdvyshneve' in forward_from:
+                    # This is a forwarded message from our source group
+                    await self.process_relocation_message(message)
+                    return
+            
+            # Reply with instructions
+            await message.reply_text(
+                "📝 **Як пересилати повідомлення:**\n\n"
+                "1. Перешліть повідомлення з групи переїзду сюди\n"
+                "2. Або напишіть текст про статус переїзду\n"
+                "3. Бот автоматично проаналізує та надішле в адмін групу\n\n"
+                "Підтримувані слова: відкрито, закрито, працює, не працює",
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error handling forwarded message: {e}")
+            
+    async def handle_direct_message(self, update: Update, context):
+        """Handle direct messages from admins"""
+        try:
+            message = update.message
+            if not message or not message.text:
+                return
+                
+            self.logger.info(f"Received direct message from admin: {message.from_user.id}")
+            
+            # Process as potential relocation status update
+            await self.process_relocation_message(message)
+            
+        except Exception as e:
+            self.logger.error(f"Error handling direct message: {e}")
+            
+    async def process_relocation_message(self, message):
+        """Process message as potential relocation status update"""
+        try:
+            # Analyze message for status
+            analysis = await self.analyzer.analyze_message(message.text)
+            
+            # Store message in database
+            message_data = {
+                'message_id': message.message_id,
+                'chat_id': message.chat_id,
+                'user_id': message.from_user.id,
+                'username': message.from_user.username or '',
+                'text': message.text,
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'analysis': analysis,
+                'status': 'pending',
+                'source': 'forwarded' if message.forward_from_chat else 'direct'
+            }
+            
+            await self.db.store_message(message_data)
+            
+            # Forward to admin group with buttons
+            await self.forward_to_admin(message, analysis)
+            
+            # Confirm receipt to the admin who sent it
+            await message.reply_text(
+                f"✅ **Повідомлення отримано і проаналізовано**\n\n"
+                f"🤖 Аналіз: {analysis['suggested_status'].upper()}\n"
+                f"📊 Впевненість: {analysis['confidence']:.1%}\n\n"
+                f"Відправлено в адмін групу для затвердження.",
+                parse_mode='Markdown'
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error processing relocation message: {e}")
+            await message.reply_text(f"❌ Помилка обробки повідомлення: {e}")
             
     async def forward_to_admin(self, message, analysis: Dict[str, Any]):
         """Forward message to admin group with inline buttons"""
@@ -345,12 +441,28 @@ Please review and approve:
             
     async def handle_start(self, update: Update, context):
         """Handle /start command"""
-        await update.message.reply_text(
-            "🤖 **24/7 Relocation Status Bot**\n\n"
-            "This bot monitors relocation status messages 24/7.\n"
-            "It's running continuously and ready to process messages.",
-            parse_mode='Markdown'
-        )
+        user_id = update.message.from_user.id
+        admin_ids = self.config.admin_user_ids
+        
+        if user_id in admin_ids:
+            await update.message.reply_text(
+                "🤖 **24/7 Relocation Status Bot**\n\n"
+                "✅ Ви адміністратор цього бота!\n\n"
+                "📝 **Як користуватися:**\n"
+                "• Перешліть повідомлення з групи переїзду сюди\n"
+                "• Або напишіть текст про статус переїзду\n"
+                "• Бот проаналізує та надішле в адмін групу\n"
+                "• Затвердіть статус кнопками ✅ ВІДКРИТО / ❌ ЗАКРИТО\n\n"
+                "🔄 Бот працює 24/7 та готовий обробляти повідомлення!",
+                parse_mode='Markdown'
+            )
+        else:
+            await update.message.reply_text(
+                "🤖 **24/7 Relocation Status Bot**\n\n"
+                "Цей бот моніторить статуси переїзду.\n"
+                "Працює безперервно для адміністраторів.",
+                parse_mode='Markdown'
+            )
         
     async def handle_status(self, update: Update, context):
         """Handle /status command"""
