@@ -86,10 +86,10 @@ class IntegratedBotRunner:
             # Додавання обробника callback
             self.application.add_handler(CallbackQueryHandler(self.handle_admin_callback))
             
-            # Запуск bot application
+            # Запуск bot application без polling (тільки для callback)
             await self.application.initialize()
             await self.application.start()
-            await self.application.updater.start_polling()
+            # НЕ запускаємо polling, тому що користуємо MTProto для отримання повідомлень
             
             self.running = True
             self.logger.info("Інтегрована система запущена та активна")
