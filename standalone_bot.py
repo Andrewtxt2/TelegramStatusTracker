@@ -8,6 +8,7 @@ import signal
 import sys
 import os
 import logging
+import time
 from datetime import datetime
 import json
 import traceback
@@ -62,8 +63,17 @@ class StandaloneBot:
             api_id = int(os.getenv('TELEGRAM_API_ID', '0'))
             api_hash = os.getenv('TELEGRAM_API_HASH', '')
             
-            self.client = TelegramClient('session', api_id, api_hash)
-            await self.client.start()
+            # Use existing session if available
+            if os.path.exists('stable_session.session'):
+                session_name = 'stable_session'
+            else:
+                session_name = 'session'
+            
+            self.client = TelegramClient(session_name, api_id, api_hash)
+            
+            # Start with phone number from environment
+            phone = os.getenv('TELEGRAM_PHONE', '+380686850166')
+            await self.client.start(phone=phone)
             
             me = await self.client.get_me()
             self.logger.info(f"✅ MTProto connected: {me.first_name}")
@@ -166,14 +176,19 @@ class StandaloneBot:
         
         try:
             # Analyze message
-            analysis = await self.analyzer.analyze_message(message.text)
-            self.logger.info(f"🤖 Analysis: {analysis['suggested_status']} ({analysis['confidence']:.0%})")
-            
-            # Send to admins
-            await self.send_to_admins(message, analysis)
+            if hasattr(message, 'text') and message.text:
+                analysis = await self.analyzer.analyze_message(message.text)
+                self.logger.info(f"🤖 Analysis: {analysis['suggested_status']} ({analysis['confidence']:.0%})")
+                
+                # Send to admins
+                await self.send_to_admins(message, analysis)
+            else:
+                self.logger.info(f"Message {message.id} has no text content")
             
         except Exception as e:
             self.logger.error(f"Error processing message {message.id}: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             
     async def send_to_admins(self, message, analysis):
         """Send message to administrators"""
