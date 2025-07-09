@@ -110,6 +110,9 @@ class UltimateBot:
             # Start message polling as backup
             polling_task = asyncio.create_task(self.message_polling())
             
+            # Start Bot API polling for callbacks
+            bot_polling_task = asyncio.create_task(self.start_bot_polling())
+            
             # Keep running
             await self.client.run_until_disconnected()
             
@@ -135,15 +138,15 @@ class UltimateBot:
                 logger.error(f"❌ Group message error: {e}")
                 logger.error(traceback.format_exc())
         
-        # Callback handler
+        # Callback handler for MTProto inline buttons
         @self.client.on(events.CallbackQuery())
         async def handle_callback(event):
             try:
                 self.last_activity = datetime.now()
-                logger.info(f"🎯 Callback: {event.data} from {event.sender_id}")
+                logger.info(f"🎯 MTProto Callback: {event.data} from {event.sender_id}")
                 await self.process_callback(event)
             except Exception as e:
-                logger.error(f"Callback error: {e}")
+                logger.error(f"MTProto Callback error: {e}")
                 logger.error(traceback.format_exc())
         
         # Private message handler
@@ -208,8 +211,12 @@ class UltimateBot:
                         logger.info(f"📨 POLLING DETECTED NEW MESSAGE: {latest_message.id}")
                         logger.info(f"📨 Text: {latest_message.text[:100] if latest_message.text else '[no text]'}")
                         
-                        # Process the new message
-                        await self.process_group_message(latest_message)
+                        # Check if message was already processed by event handler
+                        if latest_message.id not in self.message_store:
+                            # Process the new message
+                            await self.process_group_message(latest_message)
+                        else:
+                            logger.info(f"⚠️ Message {latest_message.id} already processed by event handler")
                         
                         # Update last message ID
                         last_message_id = latest_message.id
@@ -217,6 +224,106 @@ class UltimateBot:
             except Exception as e:
                 logger.error(f"❌ Message polling error: {e}")
                 await asyncio.sleep(30)  # Wait longer on error
+                
+    async def start_bot_polling(self):
+        """Start Bot API polling for callback handling"""
+        from telegram.ext import Application, CallbackQueryHandler
+        
+        try:
+            # Create Bot API application
+            app = Application.builder().token(BOT_TOKEN).build()
+            
+            # Add callback handler
+            app.add_handler(CallbackQueryHandler(self.handle_bot_callback))
+            
+            logger.info("🔄 Starting Bot API polling for callbacks...")
+            await app.run_polling(drop_pending_updates=True)
+            
+        except Exception as e:
+            logger.error(f"❌ Bot polling error: {e}")
+            
+    async def handle_bot_callback(self, update, context):
+        """Handle Bot API callbacks"""
+        try:
+            query = update.callback_query
+            callback_data = query.data
+            user_id = query.from_user.id
+            
+            logger.info(f"🎯 Bot API Callback: {callback_data} from {user_id}")
+            
+            if user_id not in ADMIN_IDS:
+                logger.warning(f"❌ Unauthorized callback from user {user_id}")
+                await query.answer("❌ Доступ заборонений", show_alert=True)
+                return
+                
+            # Answer callback immediately
+            await query.answer("⏳ Обробляю...")
+            
+            if callback_data.startswith('approve_'):
+                parts = callback_data.split('_')
+                status = parts[1]
+                message_id = int(parts[2])
+                logger.info(f"✅ Approving message {message_id} with status {status}")
+                await self.approve_message_bot(query, message_id, status)
+                
+            elif callback_data.startswith('reject_'):
+                message_id = int(callback_data.split('_')[1])
+                logger.info(f"❌ Rejecting message {message_id}")
+                await self.reject_message_bot(query, message_id)
+                
+        except Exception as e:
+            logger.error(f"❌ Bot callback error: {e}")
+            logger.error(traceback.format_exc())
+            await query.answer(f"❌ Помилка: {str(e)}", show_alert=True)
+            
+    async def approve_message_bot(self, query, message_id: int, status: str):
+        """Approve message via Bot API"""
+        try:
+            logger.info(f"📤 Bot API approval for message {message_id}")
+            
+            if message_id not in self.message_store:
+                logger.error(f"❌ Message {message_id} not found in store")
+                await query.answer("❌ Повідомлення не знайдено", show_alert=True)
+                return
+                
+            status_emoji = "✅" if status == "open" else "🔴"
+            status_text = "Відкрито" if status == "open" else "Закрито"
+            
+            current_time = datetime.now().strftime("%H:%M")
+            channel_text = f"{status_emoji} {status_text} 🕓 {current_time}"
+            
+            logger.info(f"📢 Publishing to channel: {channel_text}")
+            
+            # Publish to channel
+            await self.bot.send_message(
+                chat_id=TARGET_CHANNEL,
+                text=channel_text
+            )
+            logger.info(f"✅ Successfully published to channel")
+            
+            # Update message
+            await query.edit_message_text(
+                f"✅ Опубліковано в канал!\n\n"
+                f"📋 Статус: {status_text}\n"
+                f"🕐 Час: {current_time}\n"
+                f"👤 Схвалено: {query.from_user.first_name}"
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Bot approval error: {e}")
+            await query.answer(f"❌ Помилка: {str(e)}", show_alert=True)
+            
+    async def reject_message_bot(self, query, message_id: int):
+        """Reject message via Bot API"""
+        try:
+            await query.edit_message_text(
+                f"❌ Повідомлення відхилено\n\n"
+                f"👤 Відхилено: {query.from_user.first_name}\n"
+                f"🕐 Час: {datetime.now().strftime('%H:%M')}"
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Bot rejection error: {e}")
                 
     async def process_group_message(self, message):
         """Process new message from group"""
