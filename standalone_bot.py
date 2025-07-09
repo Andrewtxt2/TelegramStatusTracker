@@ -216,6 +216,7 @@ class StandaloneBot:
     
     async def handle_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command"""
+        self.logger.info(f"Received /start command from {update.effective_user.id}")
         await update.message.reply_text(
             "🤖 Standalone Bot активний!\n\n"
             "Доступні команди:\n"
@@ -225,6 +226,7 @@ class StandaloneBot:
     
     async def handle_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /status command"""
+        self.logger.info(f"Received /status command from {update.effective_user.id}")
         try:
             uptime = datetime.now() - self.start_time
             uptime_str = str(uptime).split('.')[0]
@@ -250,6 +252,7 @@ class StandaloneBot:
     
     async def handle_health(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /health command"""
+        self.logger.info(f"Received /health command from {update.effective_user.id}")
         try:
             health_checks = []
             
