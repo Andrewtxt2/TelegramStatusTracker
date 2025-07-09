@@ -118,7 +118,7 @@ task = "shell.exec"
 args = "python3 working_bot.py"
 
 [deployment]
-deploymentTarget = "cloudrun"
+deploymentTarget = "gce"
 run = ["sh", "-c", "python3 app.py"]
 
 [[ports]]
