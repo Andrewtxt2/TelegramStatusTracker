@@ -5,7 +5,7 @@ channel = "stable-24_05"
 packages = ["openssl"]
 
 [workflows]
-runButton = "Restart Bot"
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Project"
@@ -18,7 +18,7 @@ args = "Telegram Bot Setup"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Standalone Bot"
+args = "Final Bot"
 
 [[workflows.workflow]]
 name = "Telegram Bot Setup"
@@ -93,14 +93,6 @@ task = "shell.exec"
 args = "python3 app.py"
 
 [[workflows.workflow]]
-name = "Standalone Bot"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3 standalone_bot.py"
-
-[[workflows.workflow]]
 name = "Restart Bot"
 author = 43506130
 mode = "sequential"
@@ -116,6 +108,14 @@ args = "sleep 3"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3 standalone_bot.py"
+
+[[workflows.workflow]]
+name = "Final Bot"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 final_bot.py"
 
 [deployment]
 deploymentTarget = "cloudrun"
