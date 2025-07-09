@@ -171,7 +171,8 @@ class UltimateBot:
     async def process_group_message(self, message):
         """Process new message from group"""
         try:
-            if not message.text or len(message.text.strip()) < 5:
+            if not message.text or len(message.text.strip()) < 1:
+                logger.info(f"📝 Skipping empty message {message.id}")
                 return
                 
             logger.info(f"📝 Analyzing message: {message.text[:100]}...")
@@ -206,6 +207,7 @@ class UltimateBot:
             }
             
             # Send to admins
+            logger.info(f"📤 Sending message {message.id} to admins...")
             await self.send_to_admins(message)
             
             self.processed_messages += 1
@@ -218,6 +220,8 @@ class UltimateBot:
     async def send_to_admins(self, message):
         """Send message to admins with buttons"""
         try:
+            logger.info(f"📤 Preparing admin notification for message {message.id}")
+            
             msg_data = self.message_store[message.id]
             time_str = message.date.strftime("%H:%M")
             
@@ -239,8 +243,10 @@ class UltimateBot:
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             # Send to all admins
+            logger.info(f"📤 Sending to {len(ADMIN_IDS)} admins...")
             for admin_id in ADMIN_IDS:
                 try:
+                    logger.info(f"📤 Sending to admin {admin_id}...")
                     await self.bot.send_message(
                         chat_id=admin_id,
                         text=text,
@@ -248,10 +254,11 @@ class UltimateBot:
                     )
                     logger.info(f"✅ Message sent to admin {admin_id}")
                 except Exception as e:
-                    logger.warning(f"Failed to send to admin {admin_id}: {e}")
+                    logger.error(f"❌ Failed to send to admin {admin_id}: {e}")
+                    logger.error(traceback.format_exc())
                     
         except Exception as e:
-            logger.error(f"Admin notification error: {e}")
+            logger.error(f"❌ Admin notification error: {e}")
             logger.error(traceback.format_exc())
             
     async def process_callback(self, event):
