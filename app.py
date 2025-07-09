@@ -91,8 +91,8 @@ class TelegramBotApp:
         """Start the Telegram bot service"""
         try:
             self.logger.info("Starting Telegram Bot Service...")
-            from daemon_monitor import DaemonMonitor
-            self.bot_service = DaemonMonitor()
+            from working_bot import WorkingBot
+            self.bot_service = WorkingBot()
             await self.bot_service.start()
             self.logger.info("Telegram Bot Service started successfully")
         except Exception as e:

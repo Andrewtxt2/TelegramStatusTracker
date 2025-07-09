@@ -198,6 +198,9 @@ Changelog:
 - July 09, 2025. System successfully connected to original group (ID: 1643589680) with full functionality
 - July 09, 2025. Fixed bot crash at 16:33 - restarted workflow to ensure continuous message monitoring
 - July 09, 2025. Verified system stability - all messages now arrive in bot immediately upon posting
+- July 09, 2025. CRITICAL FIX: Workflow system was browser-dependent and stopped when tabs closed
+- July 09, 2025. Switched to app.py HTTP server on port 80 - true 24/7 operation independent of browser
+- July 09, 2025. System now runs as web server + bot service for genuine deployment-grade stability
 ```
 
 ## User Preferences
