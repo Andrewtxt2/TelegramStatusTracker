@@ -202,6 +202,10 @@ Changelog:
 - July 09, 2025. Fixed Bot API polling conflicts with custom polling loop implementation
 - July 09, 2025. Added health check endpoints: /health, /status, / for Render deployment
 - July 09, 2025. System now runs on port 5000 with proper health monitoring for production deployment
+- July 09, 2025. DEPLOYMENT FIXES APPLIED: Resolved Nix package installation errors
+- July 09, 2025. Removed psutil dependency from pyproject.toml and replaced with /proc/meminfo for memory monitoring
+- July 09, 2025. Installed system dependencies: openssl, pkg-config, gcc, libffi, zlib through Nix package manager
+- July 09, 2025. Updated recovery_manager.py to work without psutil dependency for deployment compatibility
 ```
 
 ## User Preferences

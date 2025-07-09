@@ -2,7 +2,7 @@ modules = ["python-3.11"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["openssl"]
+packages = ["openssl", "pkg-config", "gcc", "libffi", "zlib"]
 
 [workflows]
 runButton = "Project"
@@ -14,19 +14,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Telegram Bot Setup"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "Render Bot"
-
-[[workflows.workflow]]
-name = "Telegram Bot Setup"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pip install python-telegram-bot>=20.0 aiohttp>=3.8.0 aiosqlite>=0.17.0 psutil>=5.9.0"
 
 [[workflows.workflow]]
 name = "Deploy Bot"
