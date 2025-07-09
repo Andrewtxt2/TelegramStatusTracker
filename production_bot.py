@@ -1,437 +1,343 @@
 #!/usr/bin/env python3
 """
-Production-ready Telegram Bot Service for 24/7 operation
-Uses only Bot API without MTProto for stable deployment
+Production-ready bot for 24/7 monitoring with no conflicts
+Single instance with MTProto monitoring and Bot API callbacks
 """
 
 import asyncio
-import signal
-import sys
-import json
 import os
+import time
+import json
+import logging
 from datetime import datetime, timezone, timedelta
-from aiohttp import web
-from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, MessageHandler, CallbackQueryHandler, CommandHandler, filters, ContextTypes
+from typing import Dict, Any, Optional
+from telethon import TelegramClient, events
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Application, CallbackQueryHandler, ContextTypes
+from telegram.error import NetworkError, TimedOut, TelegramError
 from config import Config
-from logger import setup_logger
-from database import DatabaseManager
-from message_analyzer import MessageAnalyzer
+from aiohttp import web
+import signal
 
-class ProductionTelegramBot:
+# Налаштування логування
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('production_bot.log'),
+        logging.StreamHandler()
+    ]
+)
+
+class ProductionBot:
     def __init__(self):
-        self.logger = setup_logger("production_bot")
+        self.logger = logging.getLogger("production_bot")
         self.config = Config()
-        self.db = DatabaseManager()
-        self.analyzer = MessageAnalyzer()
         
-        # Bot setup
-        self.bot_token = self.config.bot_token
-        self.application = None
-        self.web_app = None
-        self.runner = None
-        self.site = None
+        # MTProto credentials
+        mtproto_config = self.config.get('mtproto_settings', {})
+        self.api_id = int(mtproto_config.get('api_id', '0'))
+        self.api_hash = mtproto_config.get('api_hash', '')
+        
+        # Telegram clients
+        self.client = TelegramClient('session', self.api_id, self.api_hash)
+        
+        # Bot only for callbacks (no polling)
+        self.bot = Bot(token=self.config.bot_token)
+        
+        # State
         self.running = False
-        self.start_time = datetime.now(timezone.utc)
-        
-        # Message history for context
+        self.start_time = time.time()
+        self.message_storage = {}
         self.recent_messages = []
-        self.message_history_file = "recent_messages.json"
+        self.shutdown_event = asyncio.Event()
         
-    async def setup_bot(self):
-        """Setup the Telegram bot application"""
-        self.application = Application.builder().token(self.bot_token).build()
+        # HTTP server
+        self.app = web.Application()
+        self.setup_routes()
         
-        # Register handlers
-        self.application.add_handler(CommandHandler("start", self.handle_start))
-        self.application.add_handler(CommandHandler("status", self.handle_status))
-        self.application.add_handler(CommandHandler("health", self.handle_health))
-        self.application.add_handler(CallbackQueryHandler(self.handle_callback))
+        # Graceful shutdown
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
         
-        # Message handlers - only for admin groups
-        self.application.add_handler(MessageHandler(filters.ALL, self.handle_message))
+    def _signal_handler(self, signum, frame):
+        """Signal handler for graceful shutdown"""
+        self.logger.info(f"Received signal {signum}, shutting down...")
+        self.shutdown_event.set()
         
-        # Initialize database
-        await self.db.initialize()
+    def setup_routes(self):
+        """Setup HTTP routes"""
+        self.app.router.add_get('/', self.handle_root)
+        self.app.router.add_get('/health', self.handle_health)
+        self.app.router.add_get('/status', self.handle_status)
+        self.app.router.add_post('/webhook', self.handle_webhook)
         
-        # Load message history
-        await self.load_recent_messages()
-        
-        self.logger.info("Bot setup completed")
-        
-    async def handle_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /start command"""
-        user_id = update.effective_user.id
-        admin_ids = self.config.admin_user_ids
-        
-        welcome_message = """
-🤖 **24/7 Telegram Bot Service**
-
-✅ Служба активна та працює
-📊 Статус: Онлайн
-🔄 Режим: Автоматичний моніторинг
-
-ℹ️ Для отримання статусу використовуйте /status
-🏥 Для перевірки здоров'я використовуйте /health
-        """
-        
-        if user_id in admin_ids:
-            admin_message = """
-👨‍💼 **Адміністратор**
-
-Ви маєте доступ до керування ботом.
-Перешліть повідомлення або надішліть текст для аналізу.
-            """
-            welcome_message += admin_message
-            
-        await update.message.reply_text(welcome_message)
-        
-    async def handle_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /status command"""
-        uptime = datetime.now(timezone.utc) - self.start_time
-        
-        status_message = f"""
-📊 **Статус Служби**
-
-🟢 Статус: Активна
-⏱️ Час роботи: {uptime.days} днів, {uptime.seconds//3600} годин
-🔄 Режим: Автоматичний
-📊 Обробка повідомлень: Активна
-
-📈 **Статистика**
-📝 Всього повідомлень: {len(self.recent_messages)}
-⏰ Останнє оновлення: {datetime.now(timezone.utc).strftime('%H:%M:%S')}
-        """
-        
-        await update.message.reply_text(status_message)
-        
-    async def handle_health(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle /health command"""
-        health_status = "🟢 Здоровий"
-        
-        health_message = f"""
-🏥 **Перевірка Здоров'я**
-
-{health_status}
-⏰ Час перевірки: {datetime.now(timezone.utc).strftime('%H:%M:%S')}
-🔄 Служба працює нормально
-        """
-        
-        await update.message.reply_text(health_message)
-        
-    async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle incoming messages for analysis"""
-        if not update.message or not update.message.text:
-            return
-            
-        user_id = update.effective_user.id
-        admin_ids = self.config.admin_user_ids
-        
-        # Only process messages from admins
-        if user_id not in admin_ids:
-            return
-            
-        message_text = update.message.text
-        
-        # Analyze message
-        analysis = await self.analyzer.analyze_message(message_text)
-        
-        # Store in recent messages
-        message_data = {
-            "id": update.message.message_id,
-            "text": message_text,
-            "from_user": update.effective_user.first_name,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "analysis": analysis
-        }
-        
-        self.recent_messages.append(message_data)
-        if len(self.recent_messages) > 14:
-            self.recent_messages.pop(0)
-            
-        await self.save_recent_messages()
-        
-        # Create approval buttons
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ ВІДКРИТО", callback_data=f"approve_open_{update.message.message_id}"),
-                InlineKeyboardButton("❌ ЗАКРИТО", callback_data=f"approve_closed_{update.message.message_id}")
-            ],
-            [
-                InlineKeyboardButton("🕐 ДОДАТИ ЧАС", callback_data=f"add_time_{update.message.message_id}"),
-                InlineKeyboardButton("🗑️ ВІДХИЛИТИ", callback_data=f"reject_{update.message.message_id}")
-            ]
-        ]
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        # Format recent messages for context
-        recent_context = "\n".join([
-            f"• {msg['from_user']}: {msg['text'][:50]}..." 
-            for msg in self.recent_messages[-5:]
-        ])
-        
-        response_text = f"""
-📝 **Нове повідомлення для аналізу**
-
-👤 Від: {update.effective_user.first_name}
-📄 Текст: {message_text}
-
-🤖 **Аналіз:**
-📊 Рекомендований статус: {analysis.get('suggested_status', 'Невизначено')}
-🎯 Впевненість: {analysis.get('confidence', 0)}%
-
-📋 **Останні повідомлення:**
-{recent_context}
-        """
-        
-        await update.message.reply_text(response_text, reply_markup=reply_markup)
-        
-    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Handle callback queries from inline buttons"""
-        query = update.callback_query
-        await query.answer()
-        
-        data = query.data
-        parts = data.split('_')
-        
-        if len(parts) >= 3:
-            action = parts[0]
-            status = parts[1] if len(parts) > 2 else parts[1]
-            message_id = '_'.join(parts[2:]) if len(parts) > 2 else parts[1]
-            
-            if action == "approve":
-                await self.approve_message(query, status, message_id)
-            elif action == "reject":
-                await self.reject_message(query, message_id)
-            elif action == "add" and status == "time":
-                await self.add_timestamp(query, message_id)
-                
-    async def approve_message(self, query, status, message_id):
-        """Approve and publish message"""
-        status_emoji = "✅" if status == "open" else "❌"
-        status_text = "Відкрито" if status == "open" else "Закрито"
-        
-        # Get current time in GMT+3
-        current_time = datetime.now(timezone(timedelta(hours=3)))
-        time_str = current_time.strftime("%H:%M")
-        
-        # Create final message
-        final_message = f"{status_emoji} {status_text} 🕓 {time_str}"
-        
-        # Send to target channel
-        try:
-            target_channel = self.config.target_channel_id
-            bot = Bot(token=self.bot_token)
-            await bot.send_message(chat_id=target_channel, text=final_message)
-            
-            # Update callback message
-            await query.edit_message_text(
-                f"✅ Повідомлення затверджено як '{status_text}' та опубліковано о {time_str}"
-            )
-            
-            self.logger.info(f"Message approved as '{status_text}' and published at {time_str}")
-            
-        except Exception as e:
-            self.logger.error(f"Error publishing message: {e}")
-            await query.edit_message_text(f"❌ Помилка публікації: {str(e)}")
-            
-    async def reject_message(self, query, message_id):
-        """Reject message"""
-        await query.edit_message_text("🗑️ Повідомлення відхилено")
-        self.logger.info(f"Message {message_id} rejected")
-        
-    async def add_timestamp(self, query, message_id):
-        """Add timestamp to message"""
-        current_time = datetime.now(timezone(timedelta(hours=3)))
-        time_str = current_time.strftime("%H:%M")
-        await query.edit_message_text(f"🕐 Час додано: {time_str}")
-        
-    async def load_recent_messages(self):
-        """Load recent messages from file"""
-        try:
-            if os.path.exists(self.message_history_file):
-                with open(self.message_history_file, 'r', encoding='utf-8') as f:
-                    self.recent_messages = json.load(f)
-                self.logger.info(f"Loaded {len(self.recent_messages)} recent messages")
-            else:
-                self.recent_messages = []
-        except Exception as e:
-            self.logger.error(f"Error loading recent messages: {e}")
-            self.recent_messages = []
-            
-    async def save_recent_messages(self):
-        """Save recent messages to file"""
-        try:
-            with open(self.message_history_file, 'w', encoding='utf-8') as f:
-                json.dump(self.recent_messages, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            self.logger.error(f"Error saving recent messages: {e}")
-            
-    async def setup_web_server(self):
-        """Setup web server for health checks"""
-        self.web_app = web.Application()
-        
-        # Routes
-        self.web_app.router.add_get('/', self.root_endpoint)
-        self.web_app.router.add_get('/health', self.health_endpoint)
-        self.web_app.router.add_get('/status', self.status_endpoint)
-        
-        # Setup runner
-        self.runner = web.AppRunner(self.web_app)
-        await self.runner.setup()
-        
-        # Start server
-        port = int(os.getenv('PORT', 80))
-        self.site = web.TCPSite(self.runner, '0.0.0.0', port)
-        await self.site.start()
-        
-        self.logger.info(f"Web server started on port {port}")
-        
-    async def root_endpoint(self, request):
+    async def handle_root(self, request):
         """Root endpoint"""
-        return web.Response(
-            text="24/7 Telegram Bot Service is running",
-            headers={'Content-Type': 'text/plain'}
-        )
+        return web.Response(text="Production Bot is running", content_type='text/plain')
         
-    async def health_endpoint(self, request):
+    async def handle_health(self, request):
         """Health check endpoint"""
         try:
-            uptime = (datetime.now(timezone.utc) - self.start_time).total_seconds()
-            
-            # Check bot health
-            try:
-                bot = Bot(token=self.bot_token)
-                await bot.get_me()
-                bot_status = "healthy"
-            except Exception as e:
-                self.logger.error(f"Bot health check failed: {e}")
-                bot_status = "unhealthy"
-                
             health_data = {
-                "status": "healthy" if bot_status == "healthy" else "unhealthy",
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "uptime": uptime,
-                "service": "telegram-bot",
+                "status": "healthy",
+                "timestamp": datetime.now().isoformat(),
+                "uptime": time.time() - self.start_time,
+                "service": "production-bot",
                 "version": "1.0.0",
-                "bot_running": self.running,
-                "services": {
-                    "telegram_bot": bot_status,
-                    "web_server": "healthy",
-                    "database": "healthy"
-                }
+                "mtproto_connected": self.client.is_connected(),
+                "messages_processed": len(self.message_storage)
             }
+            return web.json_response(health_data)
+        except Exception as e:
+            self.logger.error(f"Health check failed: {e}")
+            return web.json_response({"status": "unhealthy", "error": str(e)}, status=500)
             
-            status_code = 200 if health_data["status"] == "healthy" else 503
-            return web.Response(
-                text=json.dumps(health_data, indent=2),
-                status=status_code,
-                headers={'Content-Type': 'application/json'}
-            )
+    async def handle_status(self, request):
+        """Status endpoint"""
+        try:
+            status_data = {
+                "service": "Production Bot",
+                "status": "running",
+                "uptime_seconds": time.time() - self.start_time,
+                "mtproto_connected": self.client.is_connected(),
+                "config_loaded": bool(self.config.bot_token),
+                "recent_messages": len(self.recent_messages),
+                "stored_messages": len(self.message_storage)
+            }
+            return web.json_response(status_data)
+        except Exception as e:
+            self.logger.error(f"Status check failed: {e}")
+            return web.json_response({"status": "error", "error": str(e)}, status=500)
+            
+    async def handle_webhook(self, request):
+        """Handle Telegram webhook for callbacks"""
+        try:
+            data = await request.json()
+            if 'callback_query' in data:
+                await self.handle_callback_query(data['callback_query'])
+            return web.json_response({"ok": True})
+        except Exception as e:
+            self.logger.error(f"Webhook error: {e}")
+            return web.json_response({"ok": False, "error": str(e)}, status=500)
+            
+    async def handle_callback_query(self, callback_data):
+        """Handle callback query from webhook"""
+        try:
+            query_id = callback_data['id']
+            data = callback_data['data']
+            message = callback_data['message']
+            
+            # Process callback
+            if data.startswith('approve_'):
+                action, status, message_id = data.split('_', 2)
+                await self.approve_message(query_id, status, message_id)
+            elif data.startswith('reject_'):
+                action, message_id = data.split('_', 1)
+                await self.reject_message(query_id, message_id)
+                
+            # Answer callback query
+            await self.bot.answer_callback_query(query_id)
             
         except Exception as e:
-            self.logger.error(f"Health check error: {e}")
-            return web.Response(
-                text=f"Health check error: {str(e)}",
-                status=500,
-                headers={'Content-Type': 'text/plain'}
-            )
+            self.logger.error(f"Callback processing error: {e}")
             
-    async def status_endpoint(self, request):
-        """Status endpoint"""
-        uptime = (datetime.now(timezone.utc) - self.start_time).total_seconds()
-        
-        status_data = {
-            "service": "Telegram Bot Service",
-            "version": "1.0.0",
-            "uptime": uptime,
-            "bot_running": self.running,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "messages_processed": len(self.recent_messages),
-            "last_activity": self.recent_messages[-1]["timestamp"] if self.recent_messages else None
-        }
-        
-        return web.Response(
-            text=json.dumps(status_data, indent=2),
-            headers={'Content-Type': 'application/json'}
-        )
-        
     async def start(self):
-        """Start both bot and web server"""
+        """Start the production bot"""
         try:
-            self.logger.info("Starting Production Telegram Bot Service...")
+            self.logger.info("🚀 Starting Production Bot...")
             
-            # Setup web server
-            await self.setup_web_server()
+            # Start MTProto client
+            await self.client.start()
+            me = await self.client.get_me()
+            self.logger.info(f"✅ MTProto connected: {me.first_name}")
             
-            # Setup bot
-            await self.setup_bot()
+            # Get target group
+            entity = await self.client.get_entity('https://t.me/pereizdvyshneve')
+            self.logger.info(f"✅ Group found: {entity.title}")
             
-            # Start bot polling
-            await self.application.initialize()
-            await self.application.start()
+            # Setup message handler
+            @self.client.on(events.NewMessage(chats=entity))
+            async def handle_message(event):
+                await self.process_message(event)
+                
+            # Start HTTP server
+            runner = web.AppRunner(self.app)
+            await runner.setup()
+            site = web.TCPSite(runner, '0.0.0.0', 80)
+            await site.start()
+            self.logger.info("✅ HTTP server started on port 80")
+            
+            # Set webhook for callbacks
+            webhook_url = f"https://{os.getenv('REPLIT_DOMAINS', 'localhost')}/webhook"
+            try:
+                await self.bot.set_webhook(webhook_url)
+                self.logger.info(f"✅ Webhook set: {webhook_url}")
+            except Exception as e:
+                self.logger.warning(f"Webhook setup failed: {e}")
+            
+            # Notify admins
+            await self.notify_startup()
             
             self.running = True
-            self.logger.info("Production bot service started successfully")
+            self.logger.info("✅ Production Bot is active and ready!")
             
-            # Start polling
-            await self.application.updater.start_polling()
-            
-            # Keep running
-            while self.running:
+            # Main loop
+            while not self.shutdown_event.is_set():
                 await asyncio.sleep(1)
                 
         except Exception as e:
-            self.logger.error(f"Error starting bot service: {e}")
-            await self.stop()
+            self.logger.error(f"Critical error: {e}")
             raise
             
-    async def stop(self):
-        """Stop all services"""
+    async def process_message(self, event):
+        """Process new message from monitored group"""
         try:
-            self.logger.info("Stopping production bot service...")
-            self.running = False
+            message_id = event.message.id
+            message_text = event.message.message or ""
             
-            # Stop bot
-            if self.application:
-                await self.application.updater.stop()
-                await self.application.stop()
-                await self.application.shutdown()
-                
-            # Stop web server
-            if self.site:
-                await self.site.stop()
-            if self.runner:
-                await self.runner.cleanup()
-                
-            self.logger.info("Production bot service stopped")
+            self.logger.info(f"📨 New message ID {message_id}")
+            self.logger.info(f"📝 Text: {message_text[:50]}...")
+            
+            # Analyze message
+            analysis = self.analyze_message(message_text)
+            self.logger.info(f"🤖 Analysis: {analysis['status']} ({analysis['confidence']}%)")
+            
+            # Store message
+            message_data = {
+                'id': message_id,
+                'text': message_text,
+                'analysis': analysis,
+                'timestamp': datetime.now(timezone.utc).isoformat(),
+                'sender': event.message.sender_id
+            }
+            
+            self.message_storage[message_id] = message_data
+            self.recent_messages.append(message_data)
+            if len(self.recent_messages) > 14:
+                self.recent_messages.pop(0)
+            
+            # Send to admins
+            await self.send_to_admins(message_text, analysis, message_id)
             
         except Exception as e:
-            self.logger.error(f"Error stopping service: {e}")
+            self.logger.error(f"Message processing error: {e}")
             
-    def signal_handler(self, signum, frame):
-        """Handle shutdown signals"""
-        self.logger.info(f"Received signal {signum}, shutting down...")
-        asyncio.create_task(self.stop())
-        sys.exit(0)
+    def analyze_message(self, text):
+        """Analyze message for relocation status"""
+        text_lower = text.lower()
+        
+        # Status keywords
+        open_keywords = ['відкрито', 'відчинено', 'проїзд', 'можна', 'працює', 'open']
+        closed_keywords = ['закрито', 'зачинено', 'немає', 'не працює', 'closed']
+        
+        open_count = sum(1 for keyword in open_keywords if keyword in text_lower)
+        closed_count = sum(1 for keyword in closed_keywords if keyword in text_lower)
+        
+        if open_count > closed_count:
+            return {"status": "відкрито", "confidence": min(60 + open_count * 20, 95)}
+        elif closed_count > open_count:
+            return {"status": "закрито", "confidence": min(60 + closed_count * 20, 95)}
+        else:
+            return {"status": "невизначено", "confidence": 30}
+            
+    async def send_to_admins(self, message_text, analysis, message_id):
+        """Send message to administrators with approval buttons"""
+        try:
+            # Recent messages context
+            recent_text = "📜 Останні повідомлення:\n"
+            for msg in self.recent_messages[-5:]:
+                recent_text += f"• {msg['text'][:50]}...\n"
+                
+            # Main message
+            text = f"📨 Нове повідомлення з групи:\n\n{message_text}\n\n"
+            text += f"🤖 Статус: {analysis['status']} ({analysis['confidence']}%)\n\n"
+            text += recent_text
+            
+            # Buttons
+            keyboard = [
+                [
+                    InlineKeyboardButton("✅ Відкрито", callback_data=f"approve_open_{message_id}"),
+                    InlineKeyboardButton("❌ Закрито", callback_data=f"approve_closed_{message_id}")
+                ],
+                [
+                    InlineKeyboardButton("🗑 Відхилити", callback_data=f"reject_{message_id}")
+                ]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            # Send to each admin
+            successful_sends = 0
+            for admin_id in self.config.admin_user_ids:
+                try:
+                    await self.bot.send_message(
+                        chat_id=admin_id,
+                        text=text,
+                        reply_markup=reply_markup
+                    )
+                    successful_sends += 1
+                    self.logger.info(f"✅ Sent to admin {admin_id}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to send to admin {admin_id}: {e}")
+                    
+            self.logger.info(f"📤 Message sent to {successful_sends}/{len(self.config.admin_user_ids)} admins")
+            
+        except Exception as e:
+            self.logger.error(f"Admin notification error: {e}")
+            
+    async def approve_message(self, query_id, status, message_id):
+        """Approve and publish message"""
+        try:
+            # Get current time in GMT+3
+            kiev_time = datetime.now(timezone(timedelta(hours=3)))
+            time_str = kiev_time.strftime("%H:%M")
+            
+            # Format message
+            status_emoji = "✅" if status == "open" else "❌"
+            status_text = "Відкрито" if status == "open" else "Закрито"
+            
+            final_message = f"{status_emoji} {status_text} 🕓 {time_str}"
+            
+            # Publish to channel
+            await self.bot.send_message(
+                chat_id=self.config.target_channel_id,
+                text=final_message
+            )
+            
+            self.logger.info(f"✅ Published to channel: {final_message}")
+            
+        except Exception as e:
+            self.logger.error(f"Publishing error: {e}")
+            
+    async def reject_message(self, query_id, message_id):
+        """Reject message"""
+        try:
+            self.logger.info(f"🗑 Message {message_id} rejected")
+        except Exception as e:
+            self.logger.error(f"Rejection error: {e}")
+            
+    async def notify_startup(self):
+        """Notify admins about startup"""
+        try:
+            startup_message = f"🚀 Production Bot запущено!\n\n"
+            startup_message += f"📅 Час: {datetime.now().strftime('%H:%M:%S')}\n"
+            startup_message += f"🔗 Моніторинг: https://t.me/pereizdvyshneve\n"
+            startup_message += f"📤 Публікація: {self.config.target_channel_id}\n\n"
+            startup_message += f"✅ Система готова до роботи!"
+            
+            for admin_id in self.config.admin_user_ids:
+                try:
+                    await self.bot.send_message(chat_id=admin_id, text=startup_message)
+                except Exception as e:
+                    self.logger.warning(f"Startup notification failed for {admin_id}: {e}")
+                    
+        except Exception as e:
+            self.logger.error(f"Startup notification error: {e}")
 
 async def main():
     """Main function"""
-    bot = ProductionTelegramBot()
-    
-    # Setup signal handlers
-    signal.signal(signal.SIGINT, bot.signal_handler)
-    signal.signal(signal.SIGTERM, bot.signal_handler)
-    
-    try:
-        await bot.start()
-    except KeyboardInterrupt:
-        await bot.stop()
-    except Exception as e:
-        bot.logger.error(f"Application error: {e}")
-        await bot.stop()
-        sys.exit(1)
+    bot = ProductionBot()
+    await bot.start()
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -34,8 +34,9 @@ class DaemonMonitor:
         self.config = Config()
         
         # MTProto клієнт
-        self.api_id = int(os.getenv('TELEGRAM_API_ID', '0'))
-        self.api_hash = os.getenv('TELEGRAM_API_HASH', '')
+        mtproto_config = self.config.get('mtproto_settings', {})
+        self.api_id = int(mtproto_config.get('api_id', os.getenv('TELEGRAM_API_ID', '0')))
+        self.api_hash = mtproto_config.get('api_hash', os.getenv('TELEGRAM_API_HASH', ''))
         
         # Унікальне ім'я сесії для daemon
         self.session_name = 'daemon_session'
@@ -95,6 +96,8 @@ class DaemonMonitor:
         # Перевірка API credentials
         if not self.api_id or not self.api_hash:
             raise ValueError("Telegram API credentials не налаштовані")
+            
+        self.logger.info(f"API ID: {self.api_id}")
             
         # Перевірка bot token
         if not self.config.bot_token:

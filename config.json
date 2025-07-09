@@ -40,5 +40,10 @@
     "cleanup_interval_days": 30,
     "backup_enabled": true,
     "backup_interval_hours": 24
+  },
+  "mtproto_settings": {
+    "api_id": "26886585",
+    "api_hash": "166e3719a0d93c12bf76af43fe91425f",
+    "phone": "+380 68 685 01 66"
   }
 }
