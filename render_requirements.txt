@@ -1,0 +1,6 @@
+aiohttp==3.8.6
+aiosqlite==0.17.0
+python-telegram-bot==20.7
+telethon==1.40.0
+pytz==2025.2
+psutil==7.0.0

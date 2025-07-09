@@ -9,6 +9,5 @@ dependencies = [
     "psutil>=5.9.0",
     "python-telegram-bot==20.7",
     "pytz>=2025.2",
-    "telegram>=0.0.1",
     "telethon>=1.40.0",
 ]
