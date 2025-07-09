@@ -166,8 +166,8 @@ class StandaloneBot:
         
         try:
             # Analyze message
-            analysis = self.analyzer.analyze_message(message.text)
-            self.logger.info(f"🤖 Analysis: {analysis['status']} ({analysis['confidence']}%)")
+            analysis = await self.analyzer.analyze_message(message.text)
+            self.logger.info(f"🤖 Analysis: {analysis['suggested_status']} ({analysis['confidence']:.0%})")
             
             # Send to admins
             await self.send_to_admins(message, analysis)
@@ -184,7 +184,7 @@ class StandaloneBot:
             time_str = message.date.strftime("%H:%M")
             message_text = f"📨 Нове повідомлення о {time_str}\n\n"
             message_text += f"💬 Текст: {message.text}\n\n"
-            message_text += f"🤖 Аналіз: {analysis['status']} ({analysis['confidence']}%)"
+            message_text += f"🤖 Аналіз: {analysis['suggested_status']} ({analysis['confidence']:.0%})"
             
             # Create keyboard
             keyboard = [

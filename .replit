@@ -5,7 +5,7 @@ channel = "stable-24_05"
 packages = ["openssl"]
 
 [workflows]
-runButton = "Project"
+runButton = "Restart Bot"
 
 [[workflows.workflow]]
 name = "Project"
@@ -95,6 +95,23 @@ args = "python3 app.py"
 [[workflows.workflow]]
 name = "Standalone Bot"
 author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 standalone_bot.py"
+
+[[workflows.workflow]]
+name = "Restart Bot"
+author = 43506130
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pkill -f standalone_bot.py || true"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "sleep 3"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
