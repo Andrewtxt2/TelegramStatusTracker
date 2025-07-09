@@ -107,6 +107,9 @@ class UltimateBot:
             # Start activity monitoring
             activity_task = asyncio.create_task(self.activity_monitor())
             
+            # Start message polling as backup
+            polling_task = asyncio.create_task(self.message_polling())
+            
             # Keep running
             await self.client.run_until_disconnected()
             
@@ -180,6 +183,40 @@ class UltimateBot:
                     
             except Exception as e:
                 logger.error(f"Activity monitor error: {e}")
+                
+    async def message_polling(self):
+        """Poll for new messages as backup"""
+        last_message_id = None
+        
+        while self.running:
+            try:
+                await asyncio.sleep(10)  # Check every 10 seconds
+                
+                # Get latest messages
+                messages = await self.client.get_messages(self.target_entity, limit=5)
+                
+                if messages:
+                    latest_message = messages[0]
+                    
+                    # Check if this is a new message
+                    if last_message_id is None:
+                        last_message_id = latest_message.id
+                        logger.info(f"🔄 Polling initialized with message ID: {last_message_id}")
+                        continue
+                        
+                    if latest_message.id > last_message_id:
+                        logger.info(f"📨 POLLING DETECTED NEW MESSAGE: {latest_message.id}")
+                        logger.info(f"📨 Text: {latest_message.text[:100] if latest_message.text else '[no text]'}")
+                        
+                        # Process the new message
+                        await self.process_group_message(latest_message)
+                        
+                        # Update last message ID
+                        last_message_id = latest_message.id
+                        
+            except Exception as e:
+                logger.error(f"❌ Message polling error: {e}")
+                await asyncio.sleep(30)  # Wait longer on error
                 
     async def process_group_message(self, message):
         """Process new message from group"""
