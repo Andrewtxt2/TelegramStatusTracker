@@ -88,9 +88,17 @@ class Config:
     @property
     def bot_token(self) -> str:
         """Get bot token"""
-        token = os.getenv('BOT_TOKEN') or self.config_data.get('bot_token', '')
+        env_token = os.getenv('BOT_TOKEN')
+        config_token = self.config_data.get('bot_token', '')
+        
+        self.logger.debug(f"Environment BOT_TOKEN: {'SET' if env_token else 'NOT_SET'}")
+        self.logger.debug(f"Config bot_token: {'SET' if config_token else 'NOT_SET'}")
+        
+        token = env_token or config_token
         if not token:
             self.logger.error("BOT_TOKEN not found in environment variables or config file")
+        else:
+            self.logger.info(f"Using bot_token: {token[:10]}...")
         return token
         
     @property
@@ -280,10 +288,19 @@ class Config:
         
         missing_fields = []
         for field in required_fields:
-            value = getattr(self, field, None)
-            if not value:
-                missing_fields.append(field)
-                
+            if field == 'bot_token':
+                # Check both environment variable and config file
+                token = os.getenv('BOT_TOKEN') or self.config_data.get('bot_token', '')
+                if not token:
+                    missing_fields.append(field)
+                    self.logger.error(f"bot_token not found in environment or config file")
+                else:
+                    self.logger.info(f"bot_token found: {token[:10]}...")
+            else:
+                value = getattr(self, field, None)
+                if not value:
+                    missing_fields.append(field)
+                    
         if missing_fields:
             self.logger.error(f"Missing required configuration fields: {missing_fields}")
             return False
