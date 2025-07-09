@@ -135,14 +135,22 @@ class WorkingBot:
         """Process group message"""
         try:
             if not message.text or len(message.text.strip()) < 1:
+                logger.info(f"📝 Skipping empty message {message.id}")
                 return
                 
-            logger.info(f"📝 Processing: {message.text[:50]}...")
+            logger.info(f"📝 Processing message {message.id}: {message.text[:50]}...")
             
-            # Analyze message
-            analysis = await self.analyzer.analyze_message(message.text)
-            status = analysis.get('status', 'unknown')
-            confidence = analysis.get('confidence', 0.3)
+            # Simple analysis without external analyzer
+            text = message.text.lower()
+            if 'відкрит' in text or 'открыт' in text or 'open' in text or '+' in text:
+                status = 'open'
+                confidence = 0.8
+            elif 'закрит' in text or 'закрыт' in text or 'closed' in text or '-' in text:
+                status = 'closed'
+                confidence = 0.8
+            else:
+                status = 'unknown'
+                confidence = 0.3
             
             # Store message
             self.message_store[message.id] = {
@@ -152,17 +160,22 @@ class WorkingBot:
                 'confidence': confidence
             }
             
+            logger.info(f"🤖 Analysis: {status} ({confidence:.0%})")
+            
             # Send to admins
             await self.send_to_admins(message)
             
-            logger.info(f"✅ Message {message.id} processed")
+            logger.info(f"✅ Message {message.id} processed successfully")
             
         except Exception as e:
             logger.error(f"❌ Message processing error: {e}")
+            logger.error(traceback.format_exc())
             
     async def send_to_admins(self, message):
         """Send message to admins with buttons"""
         try:
+            logger.info(f"📤 Sending message {message.id} to admins...")
+            
             msg_data = self.message_store[message.id]
             time_str = message.date.strftime("%H:%M")
             
@@ -187,6 +200,7 @@ class WorkingBot:
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             # Send to all admins
+            success_count = 0
             for admin_id in ADMIN_IDS:
                 try:
                     await self.bot.send_message(
@@ -194,12 +208,16 @@ class WorkingBot:
                         text=text,
                         reply_markup=reply_markup
                     )
+                    success_count += 1
                     logger.info(f"✅ Sent to admin {admin_id}")
                 except Exception as e:
                     logger.error(f"❌ Failed to send to admin {admin_id}: {e}")
                     
+            logger.info(f"✅ Message sent to {success_count}/{len(ADMIN_IDS)} admins")
+                    
         except Exception as e:
             logger.error(f"❌ Admin notification error: {e}")
+            logger.error(traceback.format_exc())
             
     async def handle_callback(self, update, context):
         """Handle callback queries"""
@@ -234,7 +252,10 @@ class WorkingBot:
     async def approve_message(self, query, message_id: int, status: str):
         """Approve and publish message"""
         try:
+            logger.info(f"📤 Starting approval for message {message_id} with status {status}")
+            
             if message_id not in self.message_store:
+                logger.error(f"❌ Message {message_id} not in store")
                 await query.answer("❌ Повідомлення не знайдено", show_alert=True)
                 return
                 
@@ -244,26 +265,37 @@ class WorkingBot:
             current_time = datetime.now().strftime("%H:%M")
             channel_text = f"{status_emoji} {status_text} 🕓 {current_time}"
             
-            logger.info(f"📢 Publishing: {channel_text}")
+            logger.info(f"📢 Publishing to channel {TARGET_CHANNEL}: {channel_text}")
             
             # Publish to channel
-            await self.bot.send_message(
-                chat_id=TARGET_CHANNEL,
-                text=channel_text
-            )
+            try:
+                await self.bot.send_message(
+                    chat_id=TARGET_CHANNEL,
+                    text=channel_text
+                )
+                logger.info(f"✅ Successfully published to channel")
+            except Exception as channel_error:
+                logger.error(f"❌ Channel publish error: {channel_error}")
+                await query.answer(f"❌ Помилка публікації в канал: {channel_error}", show_alert=True)
+                return
             
             # Update message
-            await query.edit_message_text(
-                f"✅ Опубліковано в канал!\n\n"
-                f"📋 Статус: {status_text}\n"
-                f"🕐 Час: {current_time}\n"
-                f"👤 Схвалено: {query.from_user.first_name}"
-            )
-            
-            logger.info(f"✅ Message {message_id} published as {status}")
+            try:
+                await query.edit_message_text(
+                    f"✅ Опубліковано в канал!\n\n"
+                    f"📋 Статус: {status_text}\n"
+                    f"🕐 Час: {current_time}\n"
+                    f"👤 Схвалено: {query.from_user.first_name}"
+                )
+                logger.info(f"✅ Message {message_id} published as {status}")
+            except Exception as edit_error:
+                logger.error(f"❌ Message edit error: {edit_error}")
+                # Still successful if published to channel
+                await query.answer("✅ Опубліковано в канал!", show_alert=False)
             
         except Exception as e:
             logger.error(f"❌ Approval error: {e}")
+            logger.error(traceback.format_exc())
             await query.answer(f"❌ Помилка: {str(e)}", show_alert=True)
             
     async def reject_message(self, query, message_id: int):
