@@ -42,6 +42,7 @@ class WorkingBot:
         self.target_entity = None
         self.analyzer = MessageAnalyzer()
         self.message_store = {}
+        self.recent_messages = []  # Store last 9 messages for context
         self.running = True
         
     async def start(self):
@@ -160,6 +161,17 @@ class WorkingBot:
                 'confidence': confidence
             }
             
+            # Add to recent messages (keep last 9)
+            self.recent_messages.append({
+                'text': message.text,
+                'date': message.date,
+                'id': message.id
+            })
+            
+            # Keep only last 9 messages
+            if len(self.recent_messages) > 9:
+                self.recent_messages.pop(0)
+            
             logger.info(f"🤖 Analysis: {status} ({confidence:.0%})")
             
             # Send to admins
@@ -179,8 +191,19 @@ class WorkingBot:
             msg_data = self.message_store[message.id]
             time_str = message.date.strftime("%H:%M")
             
+            # Build context from recent messages
+            context_text = ""
+            if len(self.recent_messages) > 1:  # More than just current message
+                context_text = "📋 Контекст (останні повідомлення):\n"
+                for i, recent_msg in enumerate(self.recent_messages[:-1]):  # Exclude current message
+                    msg_time = recent_msg['date'].strftime("%H:%M")
+                    msg_preview = recent_msg['text'][:50] + "..." if len(recent_msg['text']) > 50 else recent_msg['text']
+                    context_text += f"{i+1}. {msg_time}: {msg_preview}\n"
+                context_text += "\n"
+            
             text = f"📨 Повідомлення о {time_str}\n\n"
-            text += f"💬 {message.text}\n\n"
+            text += context_text
+            text += f"💬 НОВЕ: {message.text}\n\n"
             text += f"🤖 Аналіз: {msg_data['status']} ({msg_data['confidence']:.0%})\n\n"
             text += "Виберіть дію:"
             

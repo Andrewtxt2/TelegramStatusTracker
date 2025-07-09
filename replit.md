@@ -196,6 +196,8 @@ Changelog:
 - July 09, 2025. Changed closed status emoji from 🔴 to ❌ for better visibility
 - July 09, 2025. Switched monitoring group back to https://t.me/pereizdvyshneve ("🚦Пекельні Ворота | Вишневе Переїзд")
 - July 09, 2025. System successfully connected to original group (ID: 1643589680) with full functionality
+- July 09, 2025. Added context feature: Last 9 messages from group are now shown to admins before new message
+- July 09, 2025. Enhanced admin notifications with conversation history for better decision making
 ```
 
 ## User Preferences
