@@ -8,51 +8,6 @@ packages = ["openssl"]
 runButton = "Project"
 
 [[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Telegram Bot Setup"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "24/7 Bot Service"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Working Bot Direct"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Minimal Bot Service"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Clean Bot Service"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Final Clean Bot"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "HTTP Bot Service"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Simple HTTP Service"
-
-[[workflows.workflow]]
-name = "Telegram Bot Setup"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pip install python-telegram-bot>=20.0 aiohttp>=3.8.0 aiosqlite>=0.17.0 psutil>=5.9.0"
-
-[[workflows.workflow]]
 name = "Deploy Bot"
 author = 43506130
 mode = "sequential"
@@ -134,62 +89,21 @@ task = "shell.exec"
 args = "python3 standalone_bot.py"
 
 [[workflows.workflow]]
-name = "24/7 Bot Service"
+name = "Project"
+mode = "parallel"
 author = "agent"
 
 [[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3 app.py"
-waitForPort = 80
+task = "workflow.run"
+args = "Working HTTP Bot"
 
 [[workflows.workflow]]
-name = "Working Bot Direct"
+name = "Working HTTP Bot"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PYTHONPATH=/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages python3 working_bot.py"
-
-[[workflows.workflow]]
-name = "Minimal Bot Service"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3 minimal_working_bot.py"
-
-[[workflows.workflow]]
-name = "Clean Bot Service"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PYTHONPATH=/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages python3 working_bot.py"
-
-[[workflows.workflow]]
-name = "Final Clean Bot"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PYTHONPATH=/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages python3 clean_working_bot.py"
-
-[[workflows.workflow]]
-name = "HTTP Bot Service"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3 app.py"
-waitForPort = 80
-
-[[workflows.workflow]]
-name = "Simple HTTP Service"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python3 simple_app.py"
+args = "python3 working_http_bot.py"
 waitForPort = 80
 
 [deployment]

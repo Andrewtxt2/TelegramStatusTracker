@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Complete App - HTTP server with integrated working bot
+Final Complete Bot - HTTP server + Telegram bot with 9 previous messages
 """
 
 import asyncio
@@ -10,7 +10,7 @@ import os
 from aiohttp import web
 from datetime import datetime, timezone, timedelta
 
-# Add Python path for dependencies
+# Add Python path
 sys.path.insert(0, '/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages')
 
 # Configuration
@@ -26,9 +26,9 @@ KYIV_TZ = timezone(timedelta(hours=3))
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger('complete_app')
+logger = logging.getLogger('final_complete_bot')
 
-class CompleteApp:
+class FinalCompleteBot:
     def __init__(self):
         self.app = web.Application()
         self.setup_routes()
@@ -42,33 +42,37 @@ class CompleteApp:
     def setup_routes(self):
         """Setup HTTP routes"""
         self.app.router.add_get('/', self.handle_root)
-        self.app.router.add_get('/health', self.handle_health)
-        self.app.router.add_get('/status', self.handle_status)
+        self.app.router.add_get('/health', self.handle_health_web)
+        self.app.router.add_get('/status', self.handle_status_web)
         
     async def handle_root(self, request):
         """Root endpoint"""
-        return web.Response(text="✅ Simple Bot Service Running")
+        return web.Response(text="Final Complete Bot Service Running")
         
-    async def handle_health(self, request):
+    async def handle_health_web(self, request):
         """Health check endpoint"""
         health_data = {
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
-            'service': 'simple_bot_service'
+            'service': 'final_complete_bot_service',
+            'bot_running': self.running
         }
         return web.json_response(health_data)
         
-    async def handle_status(self, request):
+    async def handle_status_web(self, request):
         """Status endpoint"""
         status_data = {
-            'service': 'Simple Bot Service',
+            'service': 'Final Complete Bot Service',
             'version': '1.0.0',
+            'bot_running': self.running,
+            'messages_processed': len(self.message_store),
             'features': [
                 '9 previous messages context',
                 'Group monitoring',
                 'Admin approval buttons',
                 'Channel publishing',
-                'GMT+3 timezone'
+                'GMT+3 timezone',
+                'HTTP health checks'
             ],
             'timestamp': datetime.now().isoformat()
         }
@@ -77,7 +81,7 @@ class CompleteApp:
     async def run(self):
         """Main application runner"""
         try:
-            logger.info("🚀 Starting Complete Bot Service...")
+            logger.info("Starting Final Complete Bot Service...")
             
             # Start bot service
             asyncio.create_task(self.start_bot_service())
@@ -89,14 +93,15 @@ class CompleteApp:
             site = web.TCPSite(runner, '0.0.0.0', 80)
             await site.start()
             
-            logger.info("✅ Complete Bot Service running on port 80")
+            logger.info("Final Complete Bot Service running on port 80")
             
             # Keep running
             while True:
                 await asyncio.sleep(1)
                 
         except Exception as e:
-            logger.error(f"❌ Error: {e}")
+            logger.error(f"Error: {e}")
+            await self.send_error_notification(str(e))
             
     async def start_bot_service(self):
         """Start the bot service"""
@@ -112,7 +117,7 @@ class CompleteApp:
             
             # Get target group
             self.target_entity = await self.client.get_entity(SOURCE_GROUP)
-            logger.info(f"✅ Connected to group: {self.target_entity.title}")
+            logger.info(f"Connected to group: {self.target_entity.title}")
             
             # Initialize Bot API
             self.bot = Bot(token=BOT_TOKEN)
@@ -138,13 +143,13 @@ class CompleteApp:
             await self.bot_app.updater.start_polling()
             
             self.running = True
-            logger.info("✅ Bot service started successfully")
+            logger.info("Bot service started successfully")
             
             # Send startup notification
             await self.send_startup_notification()
             
         except Exception as e:
-            logger.error(f"❌ Bot service error: {e}")
+            logger.error(f"Bot service error: {e}")
             await self.send_error_notification(str(e))
             
     async def process_group_message(self, message):
@@ -153,7 +158,7 @@ class CompleteApp:
             if not message.text or len(message.text.strip()) < 1:
                 return
                 
-            logger.info(f"📝 Processing message: {message.text[:50]}...")
+            logger.info(f"Processing message: {message.text[:50]}...")
             
             # Simple analysis
             text = message.text.lower()
@@ -253,7 +258,7 @@ class CompleteApp:
                         text=text,
                         reply_markup=reply_markup
                     )
-                    logger.info(f"✅ Sent to admin {admin_id}")
+                    logger.info(f"Sent to admin {admin_id}")
                 except Exception as e:
                     logger.error(f"Failed to send to admin {admin_id}: {e}")
                     
@@ -263,7 +268,7 @@ class CompleteApp:
     async def handle_start(self, update, context):
         """Handle /start command"""
         try:
-            message = '''🚀 ПОВНА СИСТЕМА ПРАЦЮЄ!
+            message = """🚀 ПОВНА СИСТЕМА ПРАЦЮЄ!
 
 ✅ Функції:
 • Моніторинг групи "🚦Пекельні Ворота | Вишневе Переїзд"
@@ -275,7 +280,7 @@ class CompleteApp:
 
 🔧 Команди:
 /status - статус системи
-/health - здоров'я системи'''
+/health - здоров'я системи"""
             
             await update.message.reply_text(message)
             
@@ -287,7 +292,7 @@ class CompleteApp:
         try:
             current_time = datetime.now(KYIV_TZ).strftime("%H:%M")
             
-            message = f'''📊 СТАТУС СИСТЕМИ
+            message = f"""📊 СТАТУС СИСТЕМИ
 
 🟢 Стан: Активна
 🕐 Час: {current_time} (GMT+3)
@@ -299,7 +304,7 @@ class CompleteApp:
 • HTTP сервер: Працює на порту 80
 • Моніторинг: Активний
 
-✅ Всі системи працюють нормально'''
+✅ Всі системи працюють нормально"""
             
             await update.message.reply_text(message)
             
@@ -309,7 +314,7 @@ class CompleteApp:
     async def handle_health(self, update, context):
         """Handle /health command"""
         try:
-            message = '''🏥 ЗДОРОВ'Я СИСТЕМИ
+            message = """🏥 ЗДОРОВ'Я СИСТЕМИ
 
 ✅ MTProto: Підключено
 ✅ Bot API: Активна
@@ -319,7 +324,7 @@ class CompleteApp:
 ✅ Залежності: Завантажені
 ✅ Сесія: Активна
 
-🔋 Всі компоненти здорові'''
+🔋 Всі компоненти здорові"""
             
             await update.message.reply_text(message)
             
@@ -374,7 +379,7 @@ class CompleteApp:
                 f"👤 Схвалено: {query.from_user.first_name}"
             )
             
-            logger.info(f"✅ Published to channel: {status}")
+            logger.info(f"Published to channel: {status}")
             
         except Exception as e:
             logger.error(f"Approve error: {e}")
@@ -395,23 +400,20 @@ class CompleteApp:
         try:
             import urllib.request, urllib.parse
             
-            message = '''🎉 ПОВНА СИСТЕМА ЗАПУЩЕНА!
+            message = """🎉 ФІНАЛЬНА СИСТЕМА ЗАПУЩЕНА!
 
-✅ Основні компоненти:
-• HTTP сервер на порту 80 ✅
-• Telegram Bot API ✅
-• MTProto моніторинг ✅
-• Команди боту (/start, /status, /health) ✅
+✅ HTTP сервер на порту 80
+✅ Telegram Bot API
+✅ MTProto моніторинг
+✅ Команди боту (/start, /status, /health)
+✅ 9 попередніх повідомлень в контексті
+✅ Моніторинг групи
+✅ Кнопки схвалення для адміністраторів
+✅ Публікація в канал @kryuvysh
+✅ GMT+3 часова зона
+✅ Автоматичний аналіз повідомлень
 
-📋 Активні функції:
-• 9 попередніх повідомлень в контексті ✅
-• Моніторинг групи "🚦Пекельні Ворота | Вишневе Переїзд" ✅
-• Кнопки схвалення для адміністраторів ✅
-• Публікація в канал @kryuvysh ✅
-• GMT+3 часова зона ✅
-• Автоматичний аналіз повідомлень ✅
-
-🚀 Спробуйте команду /status в боті!'''
+🚀 Спробуйте команду /status в боті!"""
             
             for admin_id in ADMIN_IDS:
                 url = f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage'
@@ -421,21 +423,21 @@ class CompleteApp:
                 req = urllib.request.Request(url, data=data)
                 urllib.request.urlopen(req)
                 
-            logger.info("✅ Startup notification sent")
+            logger.info("Startup notification sent")
             
         except Exception as e:
-            logger.error(f"❌ Notification error: {e}")
+            logger.error(f"Notification error: {e}")
             
     async def send_error_notification(self, error_msg):
         """Send error notification"""
         try:
             import urllib.request, urllib.parse
             
-            message = f'''❌ ПОМИЛКА СИСТЕМИ
+            message = f"""❌ ПОМИЛКА СИСТЕМИ
 
 🔧 Деталі: {error_msg}
 
-⚠️ Спроба відновлення...'''
+⚠️ Спроба відновлення..."""
             
             for admin_id in ADMIN_IDS:
                 url = f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage'
@@ -445,44 +447,15 @@ class CompleteApp:
                 req = urllib.request.Request(url, data=data)
                 urllib.request.urlopen(req)
                 
-            logger.info("✅ Error notification sent")
+            logger.info("Error notification sent")
             
         except Exception as e:
-            logger.error(f"❌ Error notification failed: {e}")
-
-✅ Основні компоненти:
-• HTTP сервер на порту 80 ✅
-• Telegram Bot API ✅
-• MTProto моніторинг ✅
-• Команди боту (/start, /status, /health) ✅
-
-📋 Активні функції:
-• 9 попередніх повідомлень в контексті ✅
-• Моніторинг групи "🚦Пекельні Ворота | Вишневе Переїзд" ✅
-• Кнопки схвалення для адміністраторів ✅
-• Публікація в канал @kryuvysh ✅
-• GMT+3 часова зона ✅
-• Автоматичний аналіз повідомлень ✅
-
-🚀 Спробуйте команду /status в боті!'''
-            
-            for admin_id in ADMIN_IDS:
-                url = f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage'
-                data = {'chat_id': admin_id, 'text': message}
-                data = urllib.parse.urlencode(data).encode('utf-8')
-                
-                req = urllib.request.Request(url, data=data)
-                urllib.request.urlopen(req)
-                
-            logger.info("✅ Startup notification sent")
-            
-        except Exception as e:
-            logger.error(f"❌ Notification error: {e}")
+            logger.error(f"Error notification failed: {e}")
 
 async def main():
     """Main function"""
-    app = CompleteApp()
-    await app.run()
+    bot = FinalCompleteBot()
+    await bot.run()
 
 if __name__ == "__main__":
     asyncio.run(main())
