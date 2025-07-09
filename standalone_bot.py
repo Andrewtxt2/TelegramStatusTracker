@@ -19,7 +19,7 @@ from config import Config
 from message_analyzer import MessageAnalyzer
 from telethon import TelegramClient
 from telegram import Bot, Update
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 class StandaloneBot:
     def __init__(self):
@@ -86,14 +86,26 @@ class StandaloneBot:
             # Initialize Bot API
             self.bot_app = Application.builder().token(self.config.bot_token).build()
             
-            # Register command handlers
+            # Register command handlers with logging
+            self.logger.info("Registering command handlers...")
             self.bot_app.add_handler(CommandHandler("status", self.handle_status))
             self.bot_app.add_handler(CommandHandler("health", self.handle_health))
             self.bot_app.add_handler(CommandHandler("start", self.handle_start))
             self.bot_app.add_handler(CallbackQueryHandler(self.handle_callback))
             
+            # Add handler for all messages (debug)
+            from telegram.ext import MessageHandler, filters
+            async def debug_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+                self.logger.info(f"Received message: {update.message.text} from {update.effective_user.id}")
+                
+            self.bot_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, debug_message_handler))
+            self.logger.info("Command handlers registered")
+            
             # Start bot polling in background
-            asyncio.create_task(self.start_bot_polling())
+            polling_task = asyncio.create_task(self.start_bot_polling())
+            
+            # Wait a bit for bot to initialize
+            await asyncio.sleep(2)
             
             # Start monitoring
             await self.start_monitoring()
@@ -209,10 +221,21 @@ class StandaloneBot:
         try:
             await self.bot_app.initialize()
             await self.bot_app.start()
-            await self.bot_app.updater.start_polling()
+            
+            # Add error handler
+            async def error_handler(update, context):
+                self.logger.error(f"Bot error: {context.error}")
+            
+            self.bot_app.add_error_handler(error_handler)
+            
+            await self.bot_app.updater.start_polling(
+                drop_pending_updates=True,  # Clear old updates
+                allowed_updates=["message", "callback_query"]  # Only handle these
+            )
             self.logger.info("✅ Bot polling started for commands")
         except Exception as e:
             self.logger.error(f"Error starting bot polling: {e}")
+            self.logger.error(traceback.format_exc())
     
     async def handle_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command"""
