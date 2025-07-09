@@ -9,8 +9,7 @@ import logging
 import os
 import time
 import traceback
-from datetime import datetime
-import pytz
+from datetime import datetime, timedelta
 from telethon import TelegramClient, events
 from telegram import Bot
 from telegram.ext import Application, CallbackQueryHandler
@@ -263,9 +262,10 @@ class WorkingBot:
             status_emoji = "✅" if status == "open" else "❌"
             status_text = "Відкрито" if status == "open" else "Закрито"
             
-            # Use GMT+3 timezone
-            kyiv_tz = pytz.timezone('Europe/Kyiv')
-            current_time = datetime.now(kyiv_tz).strftime("%H:%M")
+            # Use GMT+3 timezone (UTC+3)
+            utc_now = datetime.utcnow()
+            kyiv_time = utc_now + timedelta(hours=3)
+            current_time = kyiv_time.strftime("%H:%M")
             channel_text = f"{status_emoji} {status_text}\n🕓 {current_time}"
             
             logger.info(f"📢 Publishing to channel {TARGET_CHANNEL}: {channel_text}")
