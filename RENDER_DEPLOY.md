@@ -8,15 +8,16 @@ The original error was caused by a package conflict:
 The `telegram` package conflicts with `python-telegram-bot` and causes import errors.
 
 ## Solution
-1. **Fixed Import**: Use `render_start.py` instead of `working_bot.py`
+1. **Fixed Import**: Use `render_fixed_bot.py` instead of `working_bot.py`
 2. **Correct Dependencies**: Only use `python-telegram-bot`, not `telegram`
-3. **Session File**: Include `auth_session.session` in deployment
+3. **Session Conflict Fix**: Create unique session file for each deployment
+4. **Error Recovery**: Automatic recovery from AuthKeyDuplicatedError
 
 ## Deployment Steps
 
 ### 1. Render Service Setup
 - **Build Command**: `pip install -r render_requirements.txt`
-- **Start Command**: `python3 render_start.py`
+- **Start Command**: `python3 render_no_auth_bot.py`
 - **Port**: 5000 (automatically detected)
 
 ### 2. Environment Variables
@@ -32,10 +33,12 @@ PORT=5000
 ```
 
 ### 3. Files to Include
-- `render_start.py` (main application)
+- `render_no_auth_bot.py` (main application using existing session)
 - `render_requirements.txt` (dependencies)
-- `auth_session.session` (authentication file)
+- `auth_session.session` (pre-authenticated session file)
 - `RENDER_DEPLOY.md` (this file)
+
+**Note**: The bot uses existing session files to avoid authentication prompts
 
 ### 4. Dependencies (render_requirements.txt)
 ```
@@ -73,8 +76,15 @@ If you get import errors:
 ```bash
 # In Render dashboard:
 # Build: pip install -r render_requirements.txt
-# Start: python3 render_start.py
+# Start: python3 render_no_auth_bot.py
 ```
+
+### 9. AuthKeyDuplicatedError Fix
+The `render_no_auth_bot.py` automatically handles session conflicts by:
+1. Using existing pre-authenticated session files
+2. Graceful fallback to web-only mode if MTProto fails
+3. No authentication prompts during deployment
+4. Automatic session file detection and usage
 
 The bot will automatically:
 1. Connect to Telegram using the session file
