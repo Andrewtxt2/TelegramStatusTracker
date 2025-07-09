@@ -88,7 +88,10 @@ class Config:
     @property
     def bot_token(self) -> str:
         """Get bot token"""
-        return self.config_data.get('bot_token', os.getenv('BOT_TOKEN', ''))
+        token = os.getenv('BOT_TOKEN') or self.config_data.get('bot_token', '')
+        if not token:
+            self.logger.error("BOT_TOKEN not found in environment variables or config file")
+        return token
         
     @property
     def source_group_id(self):
