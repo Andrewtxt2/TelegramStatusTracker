@@ -7,6 +7,7 @@ Redirects to render_no_auth_bot.py
 import sys
 import os
 import logging
+import asyncio
 
 # Setup logging to track what's happening
 logging.basicConfig(
@@ -40,6 +41,21 @@ def main():
         os.environ['SOURCE_GROUP'] = 'https://t.me/pereizdvyshneve'
         os.environ['TARGET_CHANNEL'] = '@kryuvysh'
 
+        # Debug: Check if config.json exists and is readable
+        if os.path.exists('config.json'):
+            logger.info("MAIN.PY: config.json file exists")
+            try:
+                import json
+                with open('config.json', 'r') as f:
+                    config_data = json.load(f)
+                    bot_token_in_file = config_data.get('bot_token', 'NOT_FOUND')
+                    logger.info(f"MAIN.PY: bot_token in config.json: {bot_token_in_file[:10]}..." if bot_token_in_file != 'NOT_FOUND' else "MAIN.PY: bot_token NOT_FOUND in config.json")
+            except Exception as e:
+                logger.error(f"MAIN.PY: Error reading config.json: {e}")
+        else:
+            logger.error("MAIN.PY: config.json file does not exist")
+
+        logger.info("MAIN.PY: Starting render_main()...")
         asyncio.run(render_main())
 
     except Exception as e:
