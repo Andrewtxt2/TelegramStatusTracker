@@ -1,36 +1,37 @@
 #!/usr/bin/env python3
 """
-Тест для перевірки роботи системи
+Test script to send a message to the monitored group
 """
+
 import asyncio
 from telethon import TelegramClient
-import os
+from config import Config
 
-async def test_message():
-    api_id = int(os.getenv('TELEGRAM_API_ID'))
-    api_hash = os.getenv('TELEGRAM_API_HASH')
+async def send_test_message():
+    config = Config()
+    mtproto_config = config.get('mtproto_settings', {})
+    api_id = int(mtproto_config.get('api_id', '0'))
+    api_hash = mtproto_config.get('api_hash', '')
     
     client = TelegramClient('test_session', api_id, api_hash)
     await client.start()
     
-    # Перевірка чи є доступ до групи
     try:
-        entity = await client.get_entity('pereizdvyshneve')
-        print(f"✅ Група знайдена: {entity.title}")
-        print(f"ID групи: {entity.id}")
-        print(f"Тип: {type(entity)}")
+        # Get the target group
+        entity = await client.get_entity('https://t.me/pereizdvyshneve')
+        print(f"Found group: {entity.title} (ID: {entity.id})")
         
-        # Отримати останні повідомлення
-        messages = await client.get_messages(entity, limit=3)
-        print(f"\nОстанні {len(messages)} повідомлень:")
-        for msg in messages:
-            if msg.text:
-                print(f"ID: {msg.id}, Текст: {msg.text[:50]}...")
-                
+        # Send a test message
+        test_message = "🔄 Тест моніторингу переїзду - 9:15"
+        
+        message = await client.send_message(entity, test_message)
+        print(f"✅ Test message sent: {message.id}")
+        
     except Exception as e:
-        print(f"Помилка: {e}")
-    
-    await client.disconnect()
+        print(f"❌ Error: {e}")
+        
+    finally:
+        await client.disconnect()
 
 if __name__ == "__main__":
-    asyncio.run(test_message())
+    asyncio.run(send_test_message())

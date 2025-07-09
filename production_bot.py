@@ -155,10 +155,14 @@ class ProductionBot:
             # Get target group
             entity = await self.client.get_entity('https://t.me/pereizdvyshneve')
             self.logger.info(f"✅ Group found: {entity.title}")
+            self.logger.info(f"✅ Group ID: {entity.id}")
+            self.target_group_id = entity.id
             
             # Setup message handler
             @self.client.on(events.NewMessage(chats=entity))
             async def handle_message(event):
+                # Log every message attempt
+                self.logger.info(f"🔍 Message received from chat ID: {event.chat_id}")
                 await self.process_message(event)
                 
             # Start HTTP server
@@ -195,9 +199,15 @@ class ProductionBot:
         try:
             message_id = event.message.id
             message_text = event.message.message or ""
+            chat_id = event.chat_id
             
-            self.logger.info(f"📨 New message ID {message_id}")
+            self.logger.info(f"📨 New message ID {message_id} from chat {chat_id}")
             self.logger.info(f"📝 Text: {message_text[:50]}...")
+            
+            # Verify this is from target group
+            if hasattr(self, 'target_group_id') and chat_id != self.target_group_id:
+                self.logger.warning(f"⚠️ Message from wrong chat: {chat_id} != {self.target_group_id}")
+                return
             
             # Analyze message
             analysis = self.analyze_message(message_text)
