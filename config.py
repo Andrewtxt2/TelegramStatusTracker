@@ -6,7 +6,7 @@ Loads configuration from JSON file and environment variables
 import json
 import os
 from typing import Dict, Any, Optional, List
-from logger import setup_logger
+import logging
 
 class Config:
     def __init__(self, config_file: str = "config.json"):

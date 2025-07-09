@@ -20,6 +20,30 @@ args = "Telegram Bot Setup"
 task = "workflow.run"
 args = "24/7 Bot Service"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Working Bot Direct"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Minimal Bot Service"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Clean Bot Service"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Final Clean Bot"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "HTTP Bot Service"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Simple HTTP Service"
+
 [[workflows.workflow]]
 name = "Telegram Bot Setup"
 author = "agent"
@@ -116,6 +140,56 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3 app.py"
+waitForPort = 80
+
+[[workflows.workflow]]
+name = "Working Bot Direct"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PYTHONPATH=/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages python3 working_bot.py"
+
+[[workflows.workflow]]
+name = "Minimal Bot Service"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 minimal_working_bot.py"
+
+[[workflows.workflow]]
+name = "Clean Bot Service"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PYTHONPATH=/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages python3 working_bot.py"
+
+[[workflows.workflow]]
+name = "Final Clean Bot"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PYTHONPATH=/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages python3 clean_working_bot.py"
+
+[[workflows.workflow]]
+name = "HTTP Bot Service"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 app.py"
+waitForPort = 80
+
+[[workflows.workflow]]
+name = "Simple HTTP Service"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 simple_app.py"
 waitForPort = 80
 
 [deployment]

@@ -12,9 +12,9 @@ import traceback
 from datetime import datetime
 import pytz
 from telethon import TelegramClient, events
-from telegram import Bot
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CallbackQueryHandler
-from message_analyzer import MessageAnalyzer
+# from message_analyzer import MessageAnalyzer  # Using built-in analysis
 
 # Configuration
 API_ID = os.getenv('TELEGRAM_API_ID', '26886585')
@@ -41,7 +41,7 @@ class WorkingBot:
         self.bot = None
         self.app = None
         self.target_entity = None
-        self.analyzer = MessageAnalyzer()
+        # self.analyzer = MessageAnalyzer()  # Using built-in analysis
         self.message_store = {}
         self.running = True
         
@@ -172,26 +172,63 @@ class WorkingBot:
             logger.error(f"❌ Message processing error: {e}")
             logger.error(traceback.format_exc())
             
+    async def get_previous_messages(self, current_message_id, limit=9):
+        """Get previous messages from group"""
+        try:
+            messages = await self.client.get_messages(
+                self.target_entity,
+                min_id=current_message_id - 100,
+                max_id=current_message_id - 1,
+                limit=limit
+            )
+            
+            # Sort by date (oldest first)
+            messages.sort(key=lambda m: m.date)
+            
+            previous_texts = []
+            for msg in messages:
+                if msg.text and msg.text.strip():
+                    time_str = msg.date.astimezone(pytz.timezone('Europe/Kyiv')).strftime("%H:%M")
+                    # Limit message length
+                    text = msg.text[:100] + "..." if len(msg.text) > 100 else msg.text
+                    previous_texts.append(f"🕐 {time_str}: {text}")
+            
+            return previous_texts
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting previous messages: {e}")
+            return []
+
     async def send_to_admins(self, message):
-        """Send message to admins with buttons"""
+        """Send message to admins with buttons and previous messages"""
         try:
             logger.info(f"📤 Sending message {message.id} to admins...")
             
             msg_data = self.message_store[message.id]
-            time_str = message.date.strftime("%H:%M")
+            time_str = message.date.astimezone(pytz.timezone('Europe/Kyiv')).strftime("%H:%M")
             
-            text = f"📨 Повідомлення о {time_str}\n\n"
+            # Get previous messages
+            previous_messages = await self.get_previous_messages(message.id, 9)
+            
+            text = f"📨 Нове повідомлення о {time_str}\n\n"
             text += f"💬 {message.text}\n\n"
             text += f"🤖 Аналіз: {msg_data['status']} ({msg_data['confidence']:.0%})\n\n"
+            
+            # Add previous messages if any
+            if previous_messages:
+                text += "📋 Попередні повідомлення:\n"
+                for prev_msg in previous_messages:
+                    text += f"{prev_msg}\n"
+                text += "\n"
+            
             text += "Виберіть дію:"
             
             # Create inline keyboard
-            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
             
             keyboard = [
                 [
                     InlineKeyboardButton("✅ Відкрито", callback_data=f"approve_open_{message.id}"),
-                    InlineKeyboardButton("🔴 Закрито", callback_data=f"approve_closed_{message.id}")
+                    InlineKeyboardButton("❌ Закрито", callback_data=f"approve_closed_{message.id}")
                 ],
                 [
                     InlineKeyboardButton("❌ Відхилити", callback_data=f"reject_{message.id}")
