@@ -14,7 +14,7 @@ import logging
 from datetime import datetime
 
 # Import your bot components
-# from config import Config
+from config import Config
 # Removed IntegratedBotRunner import - using CleanMonitor instead
 from logger import setup_logger
 
@@ -91,8 +91,8 @@ class TelegramBotApp:
         """Start the Telegram bot service"""
         try:
             self.logger.info("Starting Telegram Bot Service...")
-            from working_bot import WorkingBot
-            self.bot_service = WorkingBot()
+            from daemon_monitor import DaemonMonitor
+            self.bot_service = DaemonMonitor()
             await self.bot_service.start()
             self.logger.info("Telegram Bot Service started successfully")
         except Exception as e:

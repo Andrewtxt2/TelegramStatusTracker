@@ -8,6 +8,27 @@ packages = ["openssl"]
 runButton = "Project"
 
 [[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Telegram Bot Setup"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Working Bot"
+
+[[workflows.workflow]]
+name = "Telegram Bot Setup"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pip install python-telegram-bot>=20.0 aiohttp>=3.8.0 aiosqlite>=0.17.0 psutil>=5.9.0"
+
+[[workflows.workflow]]
 name = "Deploy Bot"
 author = 43506130
 mode = "sequential"
@@ -89,22 +110,12 @@ task = "shell.exec"
 args = "python3 standalone_bot.py"
 
 [[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Complete Working System"
-
-[[workflows.workflow]]
-name = "Complete Working System"
+name = "Working Bot"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python3 complete_working_system.py"
-waitForPort = 80
+args = "python3 working_bot.py"
 
 [deployment]
 deploymentTarget = "cloudrun"
