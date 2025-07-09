@@ -115,7 +115,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python3 render_bot.py"
+args = "python3 simple_render_bot.py"
 waitForPort = 5000
 
 [deployment]

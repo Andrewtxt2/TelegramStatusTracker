@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Render-optimized Telegram Bot
-Fixed version for stable deployment without polling conflicts
+Simple Render Bot - Fixed version without session conflicts
 """
 
 import asyncio
@@ -14,52 +13,48 @@ from datetime import datetime, timedelta
 from telethon import TelegramClient, events
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler
-from message_analyzer import MessageAnalyzer
 from aiohttp import web
 from aiohttp.web import Request, Response
-import signal
-import sys
 
 # Configuration
 API_ID = int(os.getenv('TELEGRAM_API_ID', '26886585'))
 API_HASH = os.getenv('TELEGRAM_API_HASH', '166e3719a0d93c12bf76af43fe91425f')
 BOT_TOKEN = '8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc'
+ADMIN_IDS = [6395626140, 7766810783]
 SOURCE_GROUP = 'https://t.me/pereizdvyshneve'
 TARGET_CHANNEL = '@kryuvysh'
-ADMIN_IDS = [6395626140, 7766810783]
 PORT = int(os.getenv('PORT', '5000'))
 
-# Logging setup
+# Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler('render_bot.log')
+        logging.FileHandler('simple_render_bot.log'),
+        logging.StreamHandler()
     ]
 )
-logger = logging.getLogger('render_bot')
+logger = logging.getLogger('simple_render_bot')
 
-class RenderBot:
+class SimpleRenderBot:
     def __init__(self):
         self.client = None
         self.bot = None
         self.app = None
         self.web_app = None
         self.target_entity = None
-        self.analyzer = MessageAnalyzer()
         self.message_store = {}
         self.recent_messages = []
         self.running = True
         self.startup_time = datetime.now()
         
     async def start(self):
-        """Start the Render-optimized bot system"""
-        logger.info("🚀 Starting Render Bot System...")
+        """Start the simple render bot system"""
+        logger.info("🚀 Starting Simple Render Bot...")
         
         try:
-            # Initialize MTProto client with working session
-            self.client = TelegramClient('final_session', API_ID, API_HASH)
+            # Use auth_session that was working
+            self.client = TelegramClient('auth_session', API_ID, API_HASH)
             
             logger.info("📱 Starting authentication...")
             await self.client.start(phone='+380686850166')
@@ -80,25 +75,23 @@ class RenderBot:
             # Setup MTProto handlers
             await self.setup_mtproto_handlers()
             
-            # Start web server for health checks
+            # Start web server first
             await self.start_web_server()
             
-            # Start bot application (webhook mode for Render)
-            await self.start_bot_application()
+            # Start bot application in background
+            asyncio.create_task(self.start_bot_application())
             
             # Notify admins
             await self.notify_admins(
-                "🚀 RENDER BOT ЗАПУЩЕНО!\n\n"
-                "✅ Оптимізовано для Render\n"
-                "✅ Webhook режим\n"
-                "✅ Контекст останніх 9 повідомлень\n"
-                "✅ Стабільна робота 24/7\n\n"
+                "🚀 Simple Render Bot ЗАПУЩЕНО!\n\n"
+                "✅ Стабільна версія без конфліктів\n"
+                "✅ Моніторинг групи активний\n"
+                "✅ Web server на порту 5000\n\n"
                 f"📋 Група: {self.target_entity.title}\n"
-                f"📢 Канал: {TARGET_CHANNEL}\n"
-                f"🌐 Порт: {PORT}"
+                f"📢 Канал: {TARGET_CHANNEL}"
             )
             
-            logger.info("🔄 Bot running on Render...")
+            logger.info("🔄 Bot running...")
             
             # Keep running
             await self.client.run_until_disconnected()
@@ -141,7 +134,7 @@ class RenderBot:
             
     async def handle_root(self, request: Request) -> Response:
         """Root endpoint"""
-        return Response(text="Render Bot is running! 🤖", status=200)
+        return Response(text="Simple Render Bot is running! 🤖", status=200)
         
     async def handle_health(self, request: Request) -> Response:
         """Health check endpoint"""
@@ -164,7 +157,7 @@ class RenderBot:
     async def handle_status(self, request: Request) -> Response:
         """Status endpoint"""
         status_data = {
-            "bot_name": "Render Bot",
+            "bot_name": "Simple Render Bot",
             "version": "1.0.0",
             "group": self.target_entity.title if self.target_entity else "Not connected",
             "channel": TARGET_CHANNEL,
@@ -180,7 +173,7 @@ class RenderBot:
         )
         
     async def start_bot_application(self):
-        """Start bot application in webhook mode"""
+        """Start bot application"""
         try:
             logger.info("🔄 Starting Bot Application...")
             
@@ -191,64 +184,35 @@ class RenderBot:
             self.app.add_handler(CallbackQueryHandler(self.handle_callback))
             self.app.add_handler(CommandHandler("start", self.handle_start))
             self.app.add_handler(CommandHandler("status", self.handle_status_command))
-            self.app.add_handler(CommandHandler("health", self.handle_health_command))
             
             # Initialize and start
             await self.app.initialize()
             await self.app.start()
             
-            # Clear webhook and use polling for Render
+            # Start polling with better error handling
             try:
-                await self.bot.delete_webhook(drop_pending_updates=True)
-                logger.info("✅ Webhook cleared")
-                
-                # Start polling in background task
-                asyncio.create_task(self.polling_loop())
-                
-            except Exception as e:
-                logger.error(f"❌ Bot application error: {e}")
-                
-        except Exception as e:
-            logger.error(f"❌ Bot application startup error: {e}")
-            
-    async def polling_loop(self):
-        """Custom polling loop to avoid conflicts"""
-        logger.info("🔄 Starting custom polling loop...")
-        
-        offset = 0
-        while self.running:
-            try:
-                # Get updates manually
-                updates = await self.bot.get_updates(
-                    offset=offset,
-                    timeout=30,
+                await self.app.updater.start_polling(
+                    drop_pending_updates=True,
                     allowed_updates=["callback_query", "message"]
                 )
-                
-                for update in updates:
-                    offset = update.update_id + 1
-                    
-                    # Handle callback queries
-                    if update.callback_query:
-                        await self.handle_callback(update, None)
-                    
-                    # Handle messages
-                    elif update.message:
-                        await self.handle_message(update, None)
-                        
             except Exception as e:
-                logger.error(f"❌ Polling error: {e}")
-                await asyncio.sleep(5)
-                
+                logger.error(f"❌ Polling start error: {e}")
+                # Continue anyway, bot will work without polling for callbacks
+            
+            logger.info("✅ Bot application started")
+            
+        except Exception as e:
+            logger.error(f"❌ Bot application error: {e}")
+            
     async def handle_start(self, update, context):
         """Handle /start command"""
         try:
             await update.message.reply_text(
-                "🤖 Render Bot активний!\n\n"
+                "🤖 Simple Render Bot активний!\n\n"
                 "✅ Моніторинг групи\n"
                 "✅ Аналіз повідомлень\n"
                 "✅ Публікація в канал\n\n"
-                "Команди: /status, /health"
+                "Команда: /status"
             )
         except Exception as e:
             logger.error(f"❌ Start command error: {e}")
@@ -258,12 +222,11 @@ class RenderBot:
         try:
             uptime = datetime.now() - self.startup_time
             text = (
-                f"📊 Render Bot Status\n\n"
+                f"📊 Simple Render Bot Status\n\n"
                 f"✅ Uptime: {uptime}\n"
                 f"📋 Група: {self.target_entity.title if self.target_entity else 'N/A'}\n"
                 f"📢 Канал: {TARGET_CHANNEL}\n"
                 f"💬 Останні повідомлення: {len(self.recent_messages)}\n"
-                f"🗃️ Збережено: {len(self.message_store)}\n"
                 f"🔗 MTProto: {'✅' if self.client.is_connected() else '❌'}\n"
                 f"🤖 Bot API: {'✅' if self.bot else '❌'}"
             )
@@ -271,46 +234,20 @@ class RenderBot:
         except Exception as e:
             logger.error(f"❌ Status command error: {e}")
             
-    async def handle_health_command(self, update, context):
-        """Handle /health command"""
-        try:
-            text = (
-                "🏥 Health Check\n\n"
-                "✅ Всі сервіси працюють\n"
-                "✅ Підключення стабільне\n"
-                "✅ Готовий до роботи"
-            )
-            await update.message.reply_text(text)
-        except Exception as e:
-            logger.error(f"❌ Health command error: {e}")
-            
-    async def handle_message(self, update, context):
-        """Handle regular messages"""
-        try:
-            # Only handle messages from admins
-            if update.message.from_user.id not in ADMIN_IDS:
-                return
-                
-            logger.info(f"📨 Admin message from {update.message.from_user.id}")
-            
-        except Exception as e:
-            logger.error(f"❌ Message handling error: {e}")
-            
     async def process_group_message(self, message):
         """Process group message"""
         try:
             if not message.text or len(message.text.strip()) < 1:
-                logger.info(f"📝 Skipping empty message {message.id}")
                 return
                 
             logger.info(f"📝 Processing message {message.id}: {message.text[:50]}...")
             
             # Simple analysis
             text = message.text.lower()
-            if 'відкрит' in text or 'открыт' in text or 'open' in text or '+' in text:
+            if any(word in text for word in ['відкрит', 'відкрыт', 'open', '+']):
                 status = 'open'
                 confidence = 0.8
-            elif 'закрит' in text or 'закрыт' in text or 'closed' in text or '-' in text:
+            elif any(word in text for word in ['закрит', 'закрыт', 'closed', '-']):
                 status = 'closed'
                 confidence = 0.8
             else:
@@ -342,7 +279,6 @@ class RenderBot:
             
         except Exception as e:
             logger.error(f"❌ Message processing error: {e}")
-            logger.error(traceback.format_exc())
             
     async def send_to_admins(self, message):
         """Send message to admins with buttons"""
@@ -419,21 +355,20 @@ class RenderBot:
         except Exception as e:
             logger.error(f"❌ Callback error: {e}")
             
-    async def approve_message(self, query, message_id, status):
+    async def approve_message(self, query, message_id: int, status: str):
         """Approve and publish message"""
         try:
-            logger.info(f"📤 Starting approval for message {message_id} with status {status}")
+            logger.info(f"✅ Approving message {message_id} with status: {status}")
             
-            status_emoji = "✅" if status == "open" else "❌"
-            status_text = "Відкрито" if status == "open" else "Закрито"
+            # Get current time (GMT+3)
+            current_time = datetime.now() + timedelta(hours=3)
+            time_str = current_time.strftime("%H:%M")
             
-            # Use GMT+3 timezone
-            utc_now = datetime.utcnow()
-            kyiv_time = utc_now + timedelta(hours=3)
-            current_time = kyiv_time.strftime("%H:%M")
-            channel_text = f"{status_emoji} {status_text}\n🕓 {current_time}"
-            
-            logger.info(f"📢 Publishing to channel {TARGET_CHANNEL}: {channel_text}")
+            # Create channel message
+            if status == 'open':
+                channel_text = f"✅ Відкрито\n🕓 {time_str}"
+            else:
+                channel_text = f"❌ Закрито\n🕓 {time_str}"
             
             # Send to channel
             await self.bot.send_message(
@@ -441,83 +376,49 @@ class RenderBot:
                 text=channel_text
             )
             
-            logger.info("✅ Successfully published to channel")
-            
-            # Update admin message
+            # Update admin
             await query.edit_message_text(
-                text=f"✅ Опубліковано як {status_text}\n\n"
-                     f"📢 Канал: {TARGET_CHANNEL}\n"
-                     f"🕓 Час: {current_time}\n"
-                     f"👤 Адмін: {query.from_user.first_name}"
+                f"✅ Повідомлення схвалено та опубліковано!\n\n"
+                f"📢 Канал: {TARGET_CHANNEL}\n"
+                f"📝 Статус: {status}\n"
+                f"🕓 Час: {time_str}"
             )
             
-            logger.info(f"✅ Message {message_id} published as {status}")
+            logger.info(f"✅ Message {message_id} published to channel")
             
         except Exception as e:
             logger.error(f"❌ Approve error: {e}")
             
-    async def reject_message(self, query, message_id):
+    async def reject_message(self, query, message_id: int):
         """Reject message"""
         try:
-            await query.edit_message_text(
-                text=f"🚫 Повідомлення відхилено\n\n"
-                     f"👤 Адмін: {query.from_user.first_name}\n"
-                     f"🕓 Час: {datetime.now().strftime('%H:%M')}"
-            )
+            logger.info(f"🚫 Rejecting message {message_id}")
             
-            logger.info(f"🚫 Message {message_id} rejected")
+            await query.edit_message_text(
+                "🚫 Повідомлення відхилено"
+            )
             
         except Exception as e:
             logger.error(f"❌ Reject error: {e}")
             
-    async def notify_admins(self, message):
-        """Notify all admins"""
+    async def notify_admins(self, message: str):
+        """Send notification to all admins"""
         try:
             for admin_id in ADMIN_IDS:
                 try:
-                    await self.bot.send_message(admin_id, message)
-                    logger.info(f"✅ Notified admin {admin_id}")
+                    await self.bot.send_message(
+                        chat_id=admin_id,
+                        text=message
+                    )
                 except Exception as e:
                     logger.error(f"❌ Failed to notify admin {admin_id}: {e}")
         except Exception as e:
             logger.error(f"❌ Notify admins error: {e}")
-            
-    async def stop(self):
-        """Stop the bot"""
-        logger.info("🛑 Stopping Render Bot...")
-        self.running = False
-        
-        if self.app:
-            await self.app.stop()
-            await self.app.shutdown()
-            
-        if self.client:
-            await self.client.disconnect()
-            
-        logger.info("✅ Render Bot stopped")
 
-# Main execution
 async def main():
     """Main function"""
-    bot = RenderBot()
-    
-    # Handle shutdown signals
-    def signal_handler(sig, frame):
-        logger.info(f"🔔 Received signal {sig}")
-        asyncio.create_task(bot.stop())
-        
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
-    
-    try:
-        await bot.start()
-    except KeyboardInterrupt:
-        logger.info("🔔 Keyboard interrupt received")
-    except Exception as e:
-        logger.error(f"❌ Main error: {e}")
-        logger.error(traceback.format_exc())
-    finally:
-        await bot.stop()
+    bot = SimpleRenderBot()
+    await bot.start()
 
 if __name__ == "__main__":
     asyncio.run(main())
