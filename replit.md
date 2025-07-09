@@ -194,6 +194,8 @@ Changelog:
 - July 09, 2025. Fixed timezone to GMT+3 (Europe/Kyiv) - system now shows correct local time
 - July 09, 2025. Updated channel message format to multi-line: "❌ Закрито\n🕓 16:10" instead of single line
 - July 09, 2025. Changed closed status emoji from 🔴 to ❌ for better visibility
+- July 09, 2025. Switched monitoring group back to https://t.me/pereizdvyshneve ("🚦Пекельні Ворота | Вишневе Переїзд")
+- July 09, 2025. System successfully connected to original group (ID: 1643589680) with full functionality
 ```
 
 ## User Preferences
