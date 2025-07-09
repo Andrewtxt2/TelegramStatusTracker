@@ -226,17 +226,11 @@ class RecoveryManager:
         if free_space < 100 * 1024 * 1024:  # Less than 100MB
             self.logger.warning("Low disk space detected")
             
-        # Check memory usage using /proc/meminfo (Linux-specific)
-        try:
-            with open('/proc/meminfo', 'r') as f:
-                meminfo = f.read()
-                mem_total = int([line for line in meminfo.split('\n') if 'MemTotal' in line][0].split()[1])
-                mem_available = int([line for line in meminfo.split('\n') if 'MemAvailable' in line][0].split()[1])
-                memory_percent = ((mem_total - mem_available) / mem_total) * 100
-                if memory_percent > 90:
-                    self.logger.warning("High memory usage detected")
-        except (FileNotFoundError, IndexError, ValueError):
-            self.logger.info("Memory usage check skipped (not available in this environment)")
+        # Check memory usage
+        import psutil
+        memory_percent = psutil.virtual_memory().percent
+        if memory_percent > 90:
+            self.logger.warning("High memory usage detected")
             
         await asyncio.sleep(10)
         

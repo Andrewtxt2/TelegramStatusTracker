@@ -58,8 +58,8 @@ class RenderBot:
         logger.info("🚀 Starting Render Bot System...")
         
         try:
-            # Initialize MTProto client with new session
-            session_name = "render_session_new"
+            # Initialize MTProto client with existing session
+            session_name = "working_session"
             self.client = TelegramClient(session_name, API_ID, API_HASH)
             
             logger.info("📱 Starting authentication...")
