@@ -112,9 +112,9 @@ class WorkingBot:
         logger.info("✅ MTProto handlers configured")
         
     async def start_bot_api(self):
-        """Start Bot API application"""
+        """Start Bot API application for Render deployment"""
         try:
-            logger.info("🔄 Starting Bot API...")
+            logger.info("🔄 Starting Bot API for Render...")
             
             # Create application
             self.app = Application.builder().token(BOT_TOKEN).build()
@@ -122,15 +122,34 @@ class WorkingBot:
             # Add callback handler
             self.app.add_handler(CallbackQueryHandler(self.handle_callback))
             
-            # Start polling
+            # Initialize and start
             await self.app.initialize()
             await self.app.start()
-            await self.app.updater.start_polling()
             
-            logger.info("✅ Bot API polling started")
-            
+            # Clear webhook and start polling with proper error handling
+            try:
+                await self.bot.delete_webhook(drop_pending_updates=True)
+                logger.info("✅ Webhook cleared")
+                
+                # Start polling with timeout and error handling
+                await self.app.updater.start_polling(
+                    drop_pending_updates=True,
+                    allowed_updates=["callback_query", "message"],
+                    timeout=30
+                )
+                logger.info("✅ Bot API polling started")
+                
+            except Exception as polling_error:
+                logger.error(f"❌ Polling error: {polling_error}")
+                # Try simpler approach
+                logger.info("🔄 Trying simple polling...")
+                await self.app.run_polling(drop_pending_updates=True)
+                
         except Exception as e:
             logger.error(f"❌ Bot API error: {e}")
+            logger.error(traceback.format_exc())
+            # Continue with MTProto only
+            logger.info("🔄 Continuing with MTProto monitoring only...")
             
     async def process_group_message(self, message):
         """Process group message"""

@@ -18,7 +18,7 @@ args = "Telegram Bot Setup"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Working Bot"
+args = "Render Bot"
 
 [[workflows.workflow]]
 name = "Telegram Bot Setup"
@@ -110,12 +110,13 @@ task = "shell.exec"
 args = "python3 standalone_bot.py"
 
 [[workflows.workflow]]
-name = "Working Bot"
+name = "Render Bot"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python3 working_bot.py"
+args = "python3 render_bot.py"
+waitForPort = 5000
 
 [deployment]
 deploymentTarget = "gce"
