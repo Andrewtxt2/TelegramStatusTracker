@@ -10,6 +10,7 @@ import os
 import time
 import traceback
 from datetime import datetime
+import pytz
 from telethon import TelegramClient, events
 from telegram import Bot
 from telegram.ext import Application, CallbackQueryHandler
@@ -259,11 +260,13 @@ class WorkingBot:
                 await query.answer("❌ Повідомлення не знайдено", show_alert=True)
                 return
                 
-            status_emoji = "✅" if status == "open" else "🔴"
+            status_emoji = "✅" if status == "open" else "❌"
             status_text = "Відкрито" if status == "open" else "Закрито"
             
-            current_time = datetime.now().strftime("%H:%M")
-            channel_text = f"{status_emoji} {status_text} 🕓 {current_time}"
+            # Use GMT+3 timezone
+            kyiv_tz = pytz.timezone('Europe/Kyiv')
+            current_time = datetime.now(kyiv_tz).strftime("%H:%M")
+            channel_text = f"{status_emoji} {status_text}\n🕓 {current_time}"
             
             logger.info(f"📢 Publishing to channel {TARGET_CHANNEL}: {channel_text}")
             

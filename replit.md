@@ -191,6 +191,9 @@ Changelog:
 - July 09, 2025. System now fully operational: group monitoring → admin notifications → channel publishing
 - July 09, 2025. Verified complete workflow: test message "тест закрито" → analysis (80%) → admin buttons → channel publish "🔴 Закрито 🕓 13:05"
 - July 09, 2025. STABLE 24/7 OPERATION ACHIEVED - all functionality working reliably without conflicts
+- July 09, 2025. Fixed timezone to GMT+3 (Europe/Kyiv) - system now shows correct local time
+- July 09, 2025. Updated channel message format to multi-line: "❌ Закрито\n🕓 16:10" instead of single line
+- July 09, 2025. Changed closed status emoji from 🔴 to ❌ for better visibility
 ```
 
 ## User Preferences
