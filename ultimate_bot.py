@@ -66,8 +66,19 @@ class UltimateBot:
             # Get target group
             logger.info("🔍 Searching for target group...")
             group_username = SOURCE_GROUP.split('/')[-1]
+            logger.info(f"🔍 Looking for group: {group_username}")
             self.target_entity = await self.client.get_entity(group_username)
             logger.info(f"✅ Group found: {self.target_entity.title}")
+            logger.info(f"✅ Group ID: {self.target_entity.id}")
+            
+            # Test group access
+            try:
+                recent_messages = await self.client.get_messages(self.target_entity, limit=3)
+                logger.info(f"📨 Found {len(recent_messages)} recent messages in group")
+                for msg in recent_messages:
+                    logger.info(f"  - Message {msg.id}: {msg.text[:50] if msg.text else '[no text]'}...")
+            except Exception as msg_error:
+                logger.error(f"❌ Cannot access group messages: {msg_error}")
             
             # Initialize Bot API
             self.bot = Bot(token=BOT_TOKEN)
@@ -113,10 +124,12 @@ class UltimateBot:
         async def handle_group_message(event):
             try:
                 self.last_activity = datetime.now()
-                logger.info(f"📨 Group message {event.message.id}: {event.message.text[:100]}...")
+                logger.info(f"📨 NEW GROUP MESSAGE DETECTED!")
+                logger.info(f"📨 Group message {event.message.id}: {event.message.text[:100] if event.message.text else '[no text]'}...")
+                logger.info(f"📨 From chat: {event.chat.title if hasattr(event.chat, 'title') else event.chat_id}")
                 await self.process_group_message(event.message)
             except Exception as e:
-                logger.error(f"Group message error: {e}")
+                logger.error(f"❌ Group message error: {e}")
                 logger.error(traceback.format_exc())
         
         # Callback handler
