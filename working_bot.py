@@ -20,7 +20,7 @@ API_ID = os.getenv('TELEGRAM_API_ID', '26886585')
 API_HASH = os.getenv('TELEGRAM_API_HASH', '166e3719a0d93c12bf76af43fe91425f')
 BOT_TOKEN = '8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc'
 ADMIN_IDS = [6395626140, 7766810783]
-SOURCE_GROUP = 'https://t.me/pereizdvyshneve'
+SOURCE_GROUP = 'https://t.me/rfsdxv'
 TARGET_CHANNEL = '@kryuvysh'
 
 # Setup logging
@@ -140,7 +140,7 @@ class WorkingBot:
             logger.info(f"📝 Processing: {message.text[:50]}...")
             
             # Analyze message
-            analysis = self.analyzer.analyze_message(message.text)
+            analysis = await self.analyzer.analyze_message(message.text)
             status = analysis.get('status', 'unknown')
             confidence = analysis.get('confidence', 0.3)
             

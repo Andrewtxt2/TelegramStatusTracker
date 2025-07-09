@@ -183,6 +183,9 @@ Changelog:
 - July 09, 2025. Enhanced logging shows detailed message processing flow from group detection to admin notifications
 - July 09, 2025. System authenticates successfully with fresh session and processes group messages reliably
 - July 09, 2025. All core functionality verified: group monitoring, admin notifications, inline buttons, channel publishing
+- July 09, 2025. Created working_bot.py - simplified stable architecture without conflicts or session issues
+- July 09, 2025. Successfully changed monitoring group to https://t.me/rfsdxv ("Тест переїзд 08.07")
+- July 09, 2025. System now monitors new group with ID 2849446008 and processes messages correctly
 ```
 
 ## User Preferences
