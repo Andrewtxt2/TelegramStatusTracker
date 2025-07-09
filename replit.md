@@ -165,6 +165,9 @@ Changelog:
 - July 09, 2025. Implemented polling system to solve NewMessage event detection issues
 - July 09, 2025. Bot now checks for new messages every 10 seconds using iter_messages API
 - July 09, 2025. System successfully authenticates under user account "Ольга" and reads group messages
+- July 09, 2025. Fixed connection drop issue by implementing auto-reconnect with retry logic
+- July 09, 2025. Resolved AuthKeyDuplicatedError by creating new session (code: 34623)
+- July 09, 2025. Production bot fully restored and operational with enhanced connection stability
 ```
 
 ## User Preferences
