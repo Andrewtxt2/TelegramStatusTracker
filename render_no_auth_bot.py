@@ -110,8 +110,8 @@ class RenderNoAuthBot:
                 # Setup bot handlers
                 await self.setup_bot_handlers()
 
-                # Start background polling task
-                asyncio.create_task(self.run_bot_polling())
+                # Start bot polling in main thread (not background)
+                await self.run_bot_polling()
 
                 # Notify admins
                 await self.notify_admins(
@@ -462,19 +462,18 @@ class RenderNoAuthBot:
                 
             logger.info("🔄 Starting background polling...")
             
-            # Initialize and start application properly
+            # Initialize application
             await self.app.initialize()
             await self.app.start()
             
-            # Start polling with updater
-            if self.app.updater:
-                await self.app.updater.start_polling(
-                    drop_pending_updates=True,
-                    allowed_updates=["callback_query", "message"]
-                )
-                logger.info("✅ Bot polling started successfully")
-            else:
-                logger.warning("⚠️ No updater available")
+            # Use run_polling method directly
+            await self.app.run_polling(
+                drop_pending_updates=True,
+                allowed_updates=["callback_query", "message"],
+                close_loop=False
+            )
+            
+            logger.info("✅ Bot polling started successfully")
             
         except Exception as e:
             logger.error(f"❌ Background polling error: {e}")
