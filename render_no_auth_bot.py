@@ -107,8 +107,11 @@ class RenderNoAuthBot:
                 # Setup handlers
                 await self.setup_handlers()
 
-                # Start bot polling
-                await self.start_bot_polling()
+                # Setup bot handlers
+                await self.setup_bot_handlers()
+
+                # Start background polling task
+                asyncio.create_task(self.run_bot_polling())
 
                 # Notify admins
                 await self.notify_admins(
@@ -144,8 +147,8 @@ class RenderNoAuthBot:
             # Initialize Bot API for commands
             self.bot = TelegramBot(token=BOT_TOKEN)
 
-            # Start bot polling
-            await self.start_bot_polling()
+            # Setup bot handlers
+            await self.setup_bot_handlers()
 
             # Notify admins
             await self.notify_admins(
@@ -195,10 +198,10 @@ class RenderNoAuthBot:
         except Exception as e:
             logger.error(f"❌ Web server error: {e}")
 
-    async def start_bot_polling(self):
-        """Start bot polling for commands"""
+    async def setup_bot_handlers(self):
+        """Setup bot handlers without starting polling"""
         try:
-            logger.info("🔄 Starting bot polling...")
+            logger.info("🔄 Setting up bot handlers...")
 
             # Create application
             self.app = Application.builder().token(BOT_TOKEN).build()
@@ -208,30 +211,13 @@ class RenderNoAuthBot:
             self.app.add_handler(CommandHandler("start", self.handle_start))
             self.app.add_handler(CommandHandler("status", self.handle_status_command))
 
-            # Initialize and start
+            # Initialize only
             await self.app.initialize()
-            await self.app.start()
-
-            # Start polling with better error handling
-            try:
-                await self.app.updater.start_polling(
-                    drop_pending_updates=True,
-                    allowed_updates=["callback_query", "message"]
-                )
-                logger.info("✅ Bot polling started")
-            except AttributeError as polling_error:
-                logger.warning(f"⚠️ Polling attribute error: {polling_error}")
-                # Try alternative polling method
-                try:
-                    await self.app.updater.start_polling(drop_pending_updates=True)
-                    logger.info("✅ Bot polling started (fallback method)")
-                except Exception as fallback_error:
-                    logger.error(f"❌ Fallback polling failed: {fallback_error}")
-                    # Continue anyway - bot might still work for other functions
+            
+            logger.info("✅ Bot handlers configured")
 
         except Exception as e:
-            logger.error(f"❌ Bot polling error: {e}")
-            # Don't raise - let the bot continue with MTProto functionality
+            logger.error(f"❌ Bot setup error: {e}")
 
     async def handle_root(self, request: Request) -> Response:
         """Root endpoint"""
@@ -469,6 +455,28 @@ class RenderNoAuthBot:
                     logger.error(f"❌ Failed to notify admin {admin_id}: {e}")
         except Exception as e:
             logger.error(f"❌ Notify admins error: {e}")
+
+    async def run_bot_polling(self):
+        """Run bot polling in background task"""
+        try:
+            if not self.app:
+                logger.warning("⚠️ Bot application not initialized")
+                return
+                
+            logger.info("🔄 Starting background polling...")
+            
+            # Start application
+            await self.app.start()
+            
+            # Run polling using the application's run_polling method
+            await self.app.run_polling(
+                drop_pending_updates=True,
+                allowed_updates=["callback_query", "message"],
+                close_loop=False
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Background polling error: {e}")
 
 async def main():
     """Main function"""
