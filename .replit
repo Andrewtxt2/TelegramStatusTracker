@@ -18,7 +18,7 @@ args = "Telegram Bot Setup"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Production Bot"
+args = "Standalone Bot"
 
 [[workflows.workflow]]
 name = "Telegram Bot Setup"
@@ -93,13 +93,12 @@ task = "shell.exec"
 args = "python3 app.py"
 
 [[workflows.workflow]]
-name = "Production Bot"
+name = "Standalone Bot"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd /home/runner/workspace && python3 production_bot.py"
-waitForPort = 80
+args = "python3 standalone_bot.py"
 
 [deployment]
 deploymentTarget = "cloudrun"
