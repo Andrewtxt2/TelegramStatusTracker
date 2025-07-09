@@ -267,30 +267,40 @@ class UltimateBot:
             callback_data = event.data.decode('utf-8')
             user_id = event.sender_id
             
+            logger.info(f"🎯 Processing callback: {callback_data} from user {user_id}")
+            
             if user_id not in ADMIN_IDS:
+                logger.warning(f"❌ Unauthorized callback from user {user_id}")
                 await event.answer("❌ Доступ заборонений", alert=True)
                 return
                 
-            logger.info(f"🎯 Processing callback: {callback_data}")
+            # Answer callback immediately to stop loading
+            await event.answer("⏳ Обробляю...")
             
             if callback_data.startswith('approve_'):
                 parts = callback_data.split('_')
                 status = parts[1]
                 message_id = int(parts[2])
+                logger.info(f"✅ Approving message {message_id} with status {status}")
                 await self.approve_message(event, message_id, status)
                 
             elif callback_data.startswith('reject_'):
                 message_id = int(callback_data.split('_')[1])
+                logger.info(f"❌ Rejecting message {message_id}")
                 await self.reject_message(event, message_id)
                 
         except Exception as e:
-            logger.error(f"Callback processing error: {e}")
+            logger.error(f"❌ Callback processing error: {e}")
             logger.error(traceback.format_exc())
+            await event.answer(f"❌ Помилка: {str(e)}", alert=True)
             
     async def approve_message(self, event, message_id: int, status: str):
         """Approve and publish message"""
         try:
+            logger.info(f"📤 Starting approval process for message {message_id}")
+            
             if message_id not in self.message_store:
+                logger.error(f"❌ Message {message_id} not found in store")
                 await event.answer("❌ Повідомлення не знайдено", alert=True)
                 return
                 
@@ -300,30 +310,42 @@ class UltimateBot:
             current_time = datetime.now().strftime("%H:%M")
             channel_text = f"{status_emoji} {status_text} 🕓 {current_time}"
             
+            logger.info(f"📢 Publishing to channel: {channel_text}")
+            
             # Publish to channel
-            await self.bot.send_message(
-                chat_id=TARGET_CHANNEL,
-                text=channel_text
-            )
+            try:
+                await self.bot.send_message(
+                    chat_id=TARGET_CHANNEL,
+                    text=channel_text
+                )
+                logger.info(f"✅ Successfully published to channel {TARGET_CHANNEL}")
+                
+            except Exception as channel_error:
+                logger.error(f"❌ Channel publishing error: {channel_error}")
+                await event.answer(f"❌ Помилка публікації в канал: {channel_error}", alert=True)
+                return
             
             # Update button message
-            user = await self.client.get_entity(event.sender_id)
-            
-            await event.edit(
-                f"✅ Опубліковано в канал!\n\n"
-                f"📋 Статус: {status_text}\n"
-                f"🕐 Час: {current_time}\n"
-                f"👤 Схвалено: {user.first_name}"
-            )
-            
-            await event.answer("✅ Опубліковано!")
-            
-            logger.info(f"✅ Message {message_id} published as {status}")
+            try:
+                user = await self.client.get_entity(event.sender_id)
+                
+                await event.edit(
+                    f"✅ Опубліковано в канал!\n\n"
+                    f"📋 Статус: {status_text}\n"
+                    f"🕐 Час: {current_time}\n"
+                    f"👤 Схвалено: {user.first_name}"
+                )
+                
+                logger.info(f"✅ Message {message_id} approved and published successfully")
+                
+            except Exception as edit_error:
+                logger.error(f"❌ Message edit error: {edit_error}")
+                await event.answer("✅ Опубліковано (але помилка оновлення повідомлення)", alert=True)
             
         except Exception as e:
-            logger.error(f"Approval error: {e}")
+            logger.error(f"❌ Approval error: {e}")
             logger.error(traceback.format_exc())
-            await event.answer(f"❌ Помилка: {e}", alert=True)
+            await event.answer(f"❌ Помилка схвалення: {str(e)}", alert=True)
             
     async def reject_message(self, event, message_id: int):
         """Reject message"""
