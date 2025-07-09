@@ -95,15 +95,15 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Working HTTP Bot"
+args = "Complete Working System"
 
 [[workflows.workflow]]
-name = "Working HTTP Bot"
+name = "Complete Working System"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python3 working_http_bot.py"
+args = "python3 complete_working_system.py"
 waitForPort = 80
 
 [deployment]
