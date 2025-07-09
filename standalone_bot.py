@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import Config
 from message_analyzer import MessageAnalyzer
 from telethon import TelegramClient
-from telegram import Bot
-from telegram.ext import Application
+from telegram import Bot, Update
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 class StandaloneBot:
     def __init__(self):
@@ -29,6 +29,9 @@ class StandaloneBot:
         self.bot_app = None
         self.running = True
         self.target_entity = None
+        self.start_time = datetime.now()
+        self.processed_messages = 0
+        self.last_message_time = None
         
         # Setup logging
         logging.basicConfig(
@@ -83,6 +86,15 @@ class StandaloneBot:
             # Initialize Bot API
             self.bot_app = Application.builder().token(self.config.bot_token).build()
             
+            # Register command handlers
+            self.bot_app.add_handler(CommandHandler("status", self.handle_status))
+            self.bot_app.add_handler(CommandHandler("health", self.handle_health))
+            self.bot_app.add_handler(CommandHandler("start", self.handle_start))
+            self.bot_app.add_handler(CallbackQueryHandler(self.handle_callback))
+            
+            # Start bot polling in background
+            asyncio.create_task(self.start_bot_polling())
+            
             # Start monitoring
             await self.start_monitoring()
             
@@ -126,6 +138,8 @@ class StandaloneBot:
                 for message in reversed(new_messages):
                     await self.process_message(message)
                     last_message_id = message.id
+                    self.processed_messages += 1
+                    self.last_message_time = datetime.now()
                 
                 # Sleep between checks
                 await asyncio.sleep(10)
@@ -189,6 +203,120 @@ class StandaloneBot:
             
         except Exception as e:
             self.logger.error(f"Error sending to admins: {e}")
+    
+    async def start_bot_polling(self):
+        """Start bot polling for commands"""
+        try:
+            await self.bot_app.initialize()
+            await self.bot_app.start()
+            await self.bot_app.updater.start_polling()
+            self.logger.info("✅ Bot polling started for commands")
+        except Exception as e:
+            self.logger.error(f"Error starting bot polling: {e}")
+    
+    async def handle_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /start command"""
+        await update.message.reply_text(
+            "🤖 Standalone Bot активний!\n\n"
+            "Доступні команди:\n"
+            "/status - Стан системи\n"
+            "/health - Перевірка здоров'я\n"
+        )
+    
+    async def handle_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /status command"""
+        try:
+            uptime = datetime.now() - self.start_time
+            uptime_str = str(uptime).split('.')[0]
+            
+            status_text = f"📊 Стан Standalone Bot:\n\n"
+            status_text += f"🟢 Статус: Активний\n"
+            status_text += f"⏱️ Час роботи: {uptime_str}\n"
+            status_text += f"📨 Оброблено повідомлень: {self.processed_messages}\n"
+            status_text += f"🔗 Підключено як: Ольга\n"
+            status_text += f"👥 Група: {self.target_entity.title if self.target_entity else 'Не підключено'}\n"
+            
+            if self.last_message_time:
+                last_msg_ago = datetime.now() - self.last_message_time
+                status_text += f"📝 Останнє повідомлення: {str(last_msg_ago).split('.')[0]} тому\n"
+            
+            status_text += f"🔄 Моніторинг: {'Активний' if self.running else 'Зупинено'}\n"
+            
+            await update.message.reply_text(status_text)
+            
+        except Exception as e:
+            self.logger.error(f"Error in status command: {e}")
+            await update.message.reply_text("❌ Помилка при отриманні статусу")
+    
+    async def handle_health(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /health command"""
+        try:
+            health_checks = []
+            
+            # Check MTProto connection
+            if self.client and self.client.is_connected():
+                health_checks.append("✅ MTProto: Підключено")
+            else:
+                health_checks.append("❌ MTProto: Відключено")
+            
+            # Check group access
+            if self.target_entity:
+                health_checks.append(f"✅ Група: {self.target_entity.title}")
+            else:
+                health_checks.append("❌ Група: Не знайдено")
+            
+            # Check bot polling
+            if self.bot_app and self.bot_app.updater.running:
+                health_checks.append("✅ Bot API: Активний")
+            else:
+                health_checks.append("❌ Bot API: Неактивний")
+            
+            # Check monitoring
+            if self.running:
+                health_checks.append("✅ Моніторинг: Працює")
+            else:
+                health_checks.append("❌ Моніторинг: Зупинено")
+            
+            health_text = "🏥 Перевірка здоров'я:\n\n" + "\n".join(health_checks)
+            await update.message.reply_text(health_text)
+            
+        except Exception as e:
+            self.logger.error(f"Error in health command: {e}")
+            await update.message.reply_text("❌ Помилка при перевірці здоров'я")
+    
+    async def handle_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle callback queries from inline keyboards"""
+        query = update.callback_query
+        await query.answer()
+        
+        try:
+            data = query.data
+            if data.startswith('approve_'):
+                status = 'open' if 'open' in data else 'closed'
+                message_id = data.split('_')[-1]
+                
+                # Update message with approval
+                status_emoji = "✅" if status == 'open' else "🔴"
+                status_text = "Відкрито" if status == 'open' else "Закрито"
+                
+                await query.edit_message_text(
+                    f"{query.message.text}\n\n"
+                    f"📝 Схвалено: {status_emoji} {status_text}"
+                )
+                
+                # Here you would typically publish to channel
+                self.logger.info(f"Message {message_id} approved as {status}")
+                
+            elif data.startswith('reject_'):
+                message_id = data.split('_')[-1]
+                await query.edit_message_text(
+                    f"{query.message.text}\n\n"
+                    f"❌ Відхилено адміністратором"
+                )
+                self.logger.info(f"Message {message_id} rejected")
+                
+        except Exception as e:
+            self.logger.error(f"Error handling callback: {e}")
             
     async def stop(self):
         """Stop the bot"""

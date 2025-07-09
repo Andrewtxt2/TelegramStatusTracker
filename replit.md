@@ -171,6 +171,9 @@ Changelog:
 - July 09, 2025. Created standalone_bot.py - independent daemon service that runs without browser dependency
 - July 09, 2025. Standalone bot successfully connects to group and monitors messages with 24/7 operation
 - July 09, 2025. Removed Production Bot workflow dependency - now runs as true background service
+- July 09, 2025. Added direct bot status commands: /status, /health, /start for real-time monitoring
+- July 09, 2025. Implemented callback handler for admin approval buttons with inline keyboards
+- July 09, 2025. Bot now supports both MTProto monitoring and Bot API polling simultaneously
 ```
 
 ## User Preferences
