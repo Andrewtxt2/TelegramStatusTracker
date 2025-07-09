@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r render_requirements.txt
-    startCommand: python3 render_no_auth_bot.py
+    startCommand: python3 main.py
     autoDeploy: true
     envVars:
       - key: TELEGRAM_API_ID
