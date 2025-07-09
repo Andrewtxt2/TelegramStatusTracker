@@ -23,6 +23,11 @@ class Config:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     self.config_data = json.load(f)
                     self.logger.info(f"Configuration loaded from {self.config_file}")
+                    # Check if bot_token exists in config file
+                    if 'bot_token' in self.config_data:
+                        self.logger.info(f"CONFIG.PY: bot_token found in config file: {self.config_data['bot_token'][:10]}...")
+                    else:
+                        self.logger.warning("CONFIG.PY: bot_token NOT found in config file")
             else:
                 self.logger.warning(f"Config file {self.config_file} not found, using defaults")
                 self.config_data = {}
@@ -289,13 +294,13 @@ class Config:
         missing_fields = []
         for field in required_fields:
             if field == 'bot_token':
-                # Check both environment variable and config file
-                token = os.getenv('BOT_TOKEN') or self.config_data.get('bot_token', '')
+                # Use the bot_token property which handles both env and config
+                token = self.bot_token
                 if not token:
                     missing_fields.append(field)
                     self.logger.error(f"bot_token not found in environment or config file")
                 else:
-                    self.logger.info(f"bot_token found: {token[:10]}...")
+                    self.logger.info(f"bot_token validation passed: {token[:10]}...")
             else:
                 value = getattr(self, field, None)
                 if not value:
