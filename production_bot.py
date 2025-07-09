@@ -158,12 +158,24 @@ class ProductionBot:
             self.logger.info(f"✅ Group ID: {entity.id}")
             self.target_group_id = entity.id
             
-            # Setup message handler
+            # Setup message handler with more detailed logging
             @self.client.on(events.NewMessage(chats=entity))
             async def handle_message(event):
                 # Log every message attempt
                 self.logger.info(f"🔍 Message received from chat ID: {event.chat_id}")
+                self.logger.info(f"🔍 Message from user: {event.sender_id}")
+                self.logger.info(f"🔍 Message text: {event.message.message[:100] if event.message.message else 'No text'}")
                 await self.process_message(event)
+                
+            # Also setup handler for ALL messages (for debugging)
+            @self.client.on(events.NewMessage)
+            async def handle_all_messages(event):
+                if event.chat_id == entity.id:
+                    self.logger.info(f"🔍 ALL MESSAGES: Got message from target group {event.chat_id}")
+                    await self.process_message(event)
+                else:
+                    # Log all other messages for debugging
+                    self.logger.debug(f"🔍 Other message from chat {event.chat_id}")
                 
             # Start HTTP server
             runner = web.AppRunner(self.app)
@@ -182,6 +194,18 @@ class ProductionBot:
             
             # Notify admins
             await self.notify_startup()
+            
+            # Check if we can read recent messages from the group
+            try:
+                messages = []
+                async for message in self.client.iter_messages(entity, limit=5):
+                    messages.append(message)
+                self.logger.info(f"✅ Can read {len(messages)} recent messages from group")
+                for msg in messages:
+                    if msg.message:
+                        self.logger.info(f"  - {msg.date.strftime('%H:%M')} ID:{msg.id} - {msg.message[:50]}...")
+            except Exception as e:
+                self.logger.error(f"❌ Cannot read messages from group: {e}")
             
             self.running = True
             self.logger.info("✅ Production Bot is active and ready!")
