@@ -31,14 +31,6 @@ def main():
         from render_no_auth_bot import main as render_main
 
         logger.info("MAIN.PY: Starting render_no_auth_bot...")
-        import asyncio
-        import os
-        import time
-        from aiohttp import web, ClientSession
-        from aiohttp.web import Request, Response
-        import json
-        import logging
-        from datetime import datetime
 
         # Set required environment variables for deployment
         os.environ['BOT_TOKEN'] = '8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc'
@@ -48,10 +40,6 @@ def main():
         os.environ['SOURCE_GROUP'] = 'https://t.me/pereizdvyshneve'
         os.environ['TARGET_CHANNEL'] = '@kryuvysh'
 
-        # Import your bot components
-        from config import Config
-        # Removed IntegratedBotRunner import - using CleanMonitor instead
-        from logger import setup_logger
         asyncio.run(render_main())
 
     except Exception as e:
