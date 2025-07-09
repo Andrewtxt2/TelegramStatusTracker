@@ -211,9 +211,6 @@ class RenderNoAuthBot:
             self.app.add_handler(CommandHandler("start", self.handle_start))
             self.app.add_handler(CommandHandler("status", self.handle_status_command))
 
-            # Initialize only
-            await self.app.initialize()
-            
             logger.info("✅ Bot handlers configured")
 
         except Exception as e:
@@ -465,15 +462,19 @@ class RenderNoAuthBot:
                 
             logger.info("🔄 Starting background polling...")
             
-            # Start application
+            # Initialize and start application properly
+            await self.app.initialize()
             await self.app.start()
             
-            # Run polling using the application's run_polling method
-            await self.app.run_polling(
-                drop_pending_updates=True,
-                allowed_updates=["callback_query", "message"],
-                close_loop=False
-            )
+            # Start polling with updater
+            if self.app.updater:
+                await self.app.updater.start_polling(
+                    drop_pending_updates=True,
+                    allowed_updates=["callback_query", "message"]
+                )
+                logger.info("✅ Bot polling started successfully")
+            else:
+                logger.warning("⚠️ No updater available")
             
         except Exception as e:
             logger.error(f"❌ Background polling error: {e}")
