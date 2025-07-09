@@ -162,6 +162,9 @@ Changelog:
 - July 09, 2025. Created production_bot.py with MTProto monitoring + webhook callbacks (no polling conflicts)
 - July 09, 2025. Successfully integrated user's API credentials (ID: 26886585) - bot now fully authenticated
 - July 09, 2025. Production bot active with webhook at port 80 - true 24/7 operation achieved
+- July 09, 2025. Implemented polling system to solve NewMessage event detection issues
+- July 09, 2025. Bot now checks for new messages every 10 seconds using iter_messages API
+- July 09, 2025. System successfully authenticates under user account "Ольга" and reads group messages
 ```
 
 ## User Preferences

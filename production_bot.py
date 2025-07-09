@@ -158,24 +158,14 @@ class ProductionBot:
             self.logger.info(f"✅ Group ID: {entity.id}")
             self.target_group_id = entity.id
             
-            # Setup message handler with more detailed logging
+            # Store entity for polling
+            self.target_entity = entity
+            
+            # Setup message handler (backup for real-time events)
             @self.client.on(events.NewMessage(chats=entity))
             async def handle_message(event):
-                # Log every message attempt
-                self.logger.info(f"🔍 Message received from chat ID: {event.chat_id}")
-                self.logger.info(f"🔍 Message from user: {event.sender_id}")
-                self.logger.info(f"🔍 Message text: {event.message.message[:100] if event.message.message else 'No text'}")
+                self.logger.info(f"🔍 Real-time message from chat ID: {event.chat_id}")
                 await self.process_message(event)
-                
-            # Also setup handler for ALL messages (for debugging)
-            @self.client.on(events.NewMessage)
-            async def handle_all_messages(event):
-                if event.chat_id == entity.id:
-                    self.logger.info(f"🔍 ALL MESSAGES: Got message from target group {event.chat_id}")
-                    await self.process_message(event)
-                else:
-                    # Log all other messages for debugging
-                    self.logger.debug(f"🔍 Other message from chat {event.chat_id}")
                 
             # Start HTTP server
             runner = web.AppRunner(self.app)
@@ -210,6 +200,9 @@ class ProductionBot:
             self.running = True
             self.logger.info("✅ Production Bot is active and ready!")
             
+            # Start polling task
+            asyncio.create_task(self.polling_loop())
+            
             # Main loop
             while not self.shutdown_event.is_set():
                 await asyncio.sleep(1)
@@ -217,6 +210,52 @@ class ProductionBot:
         except Exception as e:
             self.logger.error(f"Critical error: {e}")
             raise
+            
+    async def polling_loop(self):
+        """Polling loop to check for new messages"""
+        last_message_id = None
+        
+        # Get the latest message ID to start from
+        try:
+            async for message in self.client.iter_messages(self.target_entity, limit=1):
+                last_message_id = message.id
+                break
+        except Exception as e:
+            self.logger.error(f"Failed to get initial message ID: {e}")
+            return
+            
+        self.logger.info(f"🔄 Starting polling from message ID: {last_message_id}")
+        
+        while self.running and not self.shutdown_event.is_set():
+            try:
+                # Check for new messages
+                new_messages = []
+                async for message in self.client.iter_messages(self.target_entity, limit=10):
+                    if message.id > last_message_id:
+                        new_messages.append(message)
+                    else:
+                        break
+                
+                # Process new messages (reverse order to get chronological)
+                for message in reversed(new_messages):
+                    self.logger.info(f"🔄 Polling found new message ID: {message.id}")
+                    
+                    # Create event-like object
+                    class MockEvent:
+                        def __init__(self, msg):
+                            self.message = msg
+                            self.chat_id = msg.peer_id.channel_id if hasattr(msg.peer_id, 'channel_id') else msg.peer_id.chat_id
+                            self.sender_id = msg.sender_id
+                    
+                    await self.process_message(MockEvent(message))
+                    last_message_id = message.id
+                
+                # Sleep for polling interval
+                await asyncio.sleep(10)  # Check every 10 seconds
+                
+            except Exception as e:
+                self.logger.error(f"Polling error: {e}")
+                await asyncio.sleep(30)  # Wait longer on error
             
     async def process_message(self, event):
         """Process new message from monitored group"""
