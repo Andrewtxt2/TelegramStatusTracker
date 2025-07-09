@@ -212,8 +212,10 @@ class ProductionBot:
             raise
             
     async def polling_loop(self):
-        """Polling loop to check for new messages"""
+        """Polling loop to check for new messages with auto-reconnect"""
         last_message_id = None
+        connection_retries = 0
+        max_retries = 5
         
         # Get the latest message ID to start from
         try:
@@ -228,6 +230,12 @@ class ProductionBot:
         
         while self.running and not self.shutdown_event.is_set():
             try:
+                # Check if client is connected
+                if not self.client.is_connected():
+                    self.logger.warning("🔄 Client disconnected, attempting to reconnect...")
+                    await self.client.connect()
+                    connection_retries = 0
+                
                 # Check for new messages
                 new_messages = []
                 async for message in self.client.iter_messages(self.target_entity, limit=10):
@@ -252,10 +260,24 @@ class ProductionBot:
                 
                 # Sleep for polling interval
                 await asyncio.sleep(10)  # Check every 10 seconds
+                connection_retries = 0  # Reset retry counter on success
                 
             except Exception as e:
-                self.logger.error(f"Polling error: {e}")
-                await asyncio.sleep(30)  # Wait longer on error
+                connection_retries += 1
+                self.logger.error(f"Polling error (attempt {connection_retries}/{max_retries}): {e}")
+                
+                if connection_retries >= max_retries:
+                    self.logger.error("Max connection retries reached, restarting client...")
+                    try:
+                        await self.client.disconnect()
+                        await self.client.start()
+                        self.logger.info("✅ Client restarted successfully")
+                        connection_retries = 0
+                    except Exception as restart_error:
+                        self.logger.error(f"Failed to restart client: {restart_error}")
+                        await asyncio.sleep(60)  # Wait 1 minute before trying again
+                else:
+                    await asyncio.sleep(30)  # Wait 30 seconds before retry
             
     async def process_message(self, event):
         """Process new message from monitored group"""
