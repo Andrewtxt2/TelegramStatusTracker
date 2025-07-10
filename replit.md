@@ -225,6 +225,10 @@ Changelog:
 - July 09, 2025. Fixed "Configuration validation failed" error by adding bot_token to config.json
 - July 09, 2025. Added diagnostic logging to main.py to track Render deployment issues
 - July 09, 2025. Confirmed render_no_auth_bot.py works correctly with all environment variables
+- July 10, 2025. CALLBACK FIX: Fixed Bot API polling conflicts that prevented callback buttons from working
+- July 10, 2025. Added user ID 564704015 to admin list for message access
+- July 10, 2025. Resolved "This event loop is already running" error with proper async polling setup
+- July 10, 2025. System now fully operational: MTProto monitoring + Bot API callbacks + Web server
 ```
 
 ## User Preferences

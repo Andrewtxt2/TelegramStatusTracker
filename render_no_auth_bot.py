@@ -21,7 +21,7 @@ from aiohttp.web import Request, Response
 API_ID = int(os.getenv('TELEGRAM_API_ID', '26886585'))
 API_HASH = os.getenv('TELEGRAM_API_HASH', '166e3719a0d93c12bf76af43fe91425f')
 BOT_TOKEN = os.getenv('BOT_TOKEN', '8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc')
-ADMIN_IDS = [int(x) for x in os.getenv('ADMIN_IDS', '6395626140,7766810783').split(',')]
+ADMIN_IDS = [int(x) for x in os.getenv('ADMIN_IDS', '6395626140,7766810783,564704015').split(',')]
 SOURCE_GROUP = os.getenv('SOURCE_GROUP', 'https://t.me/pereizdvyshneve')
 TARGET_CHANNEL = os.getenv('TARGET_CHANNEL', '@kryuvysh')
 PORT = int(os.getenv('PORT', '5000'))
@@ -110,8 +110,8 @@ class RenderNoAuthBot:
                 # Setup bot handlers
                 await self.setup_bot_handlers()
 
-                # Start bot polling in main thread (not background)
-                await self.run_bot_polling()
+                # Start bot polling in background task  
+                asyncio.create_task(self.start_polling_safely())
 
                 # Notify admins
                 await self.notify_admins(
@@ -453,8 +453,8 @@ class RenderNoAuthBot:
         except Exception as e:
             logger.error(f"❌ Notify admins error: {e}")
 
-    async def run_bot_polling(self):
-        """Run bot polling in background task"""
+    async def start_polling_safely(self):
+        """Start bot polling safely without event loop conflicts"""
         try:
             if not self.app:
                 logger.warning("⚠️ Bot application not initialized")
@@ -466,17 +466,20 @@ class RenderNoAuthBot:
             await self.app.initialize()
             await self.app.start()
             
-            # Use run_polling method directly
-            await self.app.run_polling(
+            # Start polling using updater
+            await self.app.updater.start_polling(
                 drop_pending_updates=True,
-                allowed_updates=["callback_query", "message"],
-                close_loop=False
+                allowed_updates=["callback_query", "message"]
             )
             
             logger.info("✅ Bot polling started successfully")
             
         except Exception as e:
             logger.error(f"❌ Background polling error: {e}")
+            
+    async def run_bot_polling(self):
+        """Deprecated - use start_polling_safely instead"""
+        await self.start_polling_safely()
 
 async def main():
     """Main function"""

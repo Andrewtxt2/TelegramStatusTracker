@@ -7,7 +7,7 @@
   "target_channel_id": "@kryuvysh",
   "target_channel_link": "https://t.me/kryuvysh",
   "admin_user_id": 0,
-  "additional_admin_ids": [6395626140, 7766810783],
+  "additional_admin_ids": [6395626140, 7766810783, 564704015],
   "database_path": "bot_data.db",
   "log_level": "INFO",
   "max_errors": 10,

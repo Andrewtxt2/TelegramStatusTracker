@@ -14,7 +14,7 @@ services:
       - key: BOT_TOKEN
         value: "8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc"
       - key: ADMIN_IDS
-        value: "6395626140,7766810783"
+        value: "6395626140,7766810783,564704015"
       - key: SOURCE_GROUP
         value: "https://t.me/pereizdvyshneve"
       - key: TARGET_CHANNEL
