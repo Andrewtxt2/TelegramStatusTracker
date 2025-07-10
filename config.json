@@ -7,11 +7,7 @@
   "target_channel_id": "@kryuvysh",
   "target_channel_link": "https://t.me/kryuvysh",
   "admin_user_id": 0,
-  "additional_admin_ids": [
-    6395626140,
-    7766810783,
-    564704015
-  ],
+  "additional_admin_ids": [564704015, 7766810783],
   "database_path": "bot_data.db",
   "log_level": "INFO",
   "max_errors": 10,
@@ -46,8 +42,8 @@
     "backup_interval_hours": 24
   },
   "mtproto_settings": {
-    "api_id": "29299324",
-    "api_hash": "c262483dda2739c72637661b537dccac",
-    "phone": "+380633952873"
+    "api_id": "26886585",
+    "api_hash": "166e3719a0d93c12bf76af43fe91425f",
+    "phone": "+380 68 685 01 66"
   }
 }

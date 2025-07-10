@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Interactive authentication with proper session handling
+Інтерактивна автентифікація для Telegram API
 """
 
 import asyncio
@@ -8,66 +8,54 @@ import os
 from telethon import TelegramClient
 from telethon.errors import SessionPasswordNeededError
 
-# API credentials
-API_ID = 29299324
-API_HASH = "c262483dda2739c72637661b537dccac"
-PHONE = "+380633952873"
-
 async def authenticate():
-    """Complete authentication process"""
+    """Інтерактивна автентифікація"""
     
-    print("🔄 Starting authentication process...")
+    api_id = int(os.getenv('TELEGRAM_API_ID', '26886585'))
+    api_hash = os.getenv('TELEGRAM_API_HASH', '166e3719a0d93c12bf76af43fe91425f')
+    phone = os.getenv('TELEGRAM_PHONE', '+380686850166')
     
-    # Clean up old sessions
-    if os.path.exists('auth_session.session'):
-        os.remove('auth_session.session')
-    if os.path.exists('new_account.session'):
-        os.remove('new_account.session')
+    print(f"🔐 Автентифікація для: {phone}")
+    print(f"📱 API ID: {api_id}")
     
-    # Create new session
-    session_name = 'auth_session'
-    client = TelegramClient(session_name, API_ID, API_HASH)
+    client = TelegramClient('monitor_session', api_id, api_hash)
     
     try:
-        await client.start(phone=PHONE)
+        await client.connect()
         
-        # Test connection
-        me = await client.get_me()
-        print(f"✅ Successfully authenticated as: {me.first_name}")
-        
-        # Notify admins
-        from telegram import Bot
-        bot = Bot(token="8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc")
-        
-        admin_ids = [6395626140, 7766810783, 564704015]
-        message = (
-            f"🎉 АВТЕНТИФІКАЦІЯ ЗАВЕРШЕНА\n\n"
-            f"👤 Акаунт: {me.first_name}\n"
-            f"📱 Номер: {PHONE}\n\n"
-            f"✅ Сесія створена: auth_session.session\n"
-            f"✅ Система готова до запуску\n\n"
-            f"Бот зараз буде запущений!"
-        )
-        
-        for admin_id in admin_ids:
+        if not await client.is_user_authorized():
+            print("📞 Відправка коду підтвердження...")
+            
+            # Відправка коду
+            sent_code = await client.send_code_request(phone)
+            print(f"✅ Код відправлено на {phone}")
+            
+            # Введення коду (симуляція для автоматичного режиму)
+            # В реальному сценарії код треба ввести вручну
+            print("⚠️ Потрібно ввести код підтвердження з SMS/Telegram")
+            print("Для автоматизації використовуємо попередньо збережену сесію")
+            
+            return False  # Потрібна ручна автентифікація
+            
+        else:
+            me = await client.get_me()
+            print(f"✅ Вже авторизовано як: {me.first_name}")
+            
+            # Перевірка доступу до групи
             try:
-                await bot.send_message(chat_id=admin_id, text=message)
-            except:
-                pass
-        
-        await client.disconnect()
-        
-        print("✅ Authentication completed successfully")
-        print("✅ Session saved as auth_session.session")
-        return True
-        
+                entity = await client.get_entity('pereizdvyshneve')
+                print(f"✅ Доступ до групи: {entity.title}")
+                return True
+            except Exception as e:
+                print(f"❌ Помилка доступу до групи: {e}")
+                return False
+                
     except Exception as e:
-        print(f"❌ Authentication failed: {e}")
+        print(f"❌ Помилка автентифікації: {e}")
         return False
+    finally:
+        await client.disconnect()
 
 if __name__ == "__main__":
-    success = asyncio.run(authenticate())
-    if success:
-        print("\n🎉 Ready to start bot!")
-    else:
-        print("\n❌ Authentication failed")
+    result = asyncio.run(authenticate())
+    print(f"Результат автентифікації: {result}")

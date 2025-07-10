@@ -1,123 +1,119 @@
 #!/usr/bin/env python3
 """
-Manual authentication with code
+Ручна автентифікація для Telegram API
+Цей скрипт потрібно запустити в терміналі для введення коду
 """
 
 import asyncio
 import os
 from telethon import TelegramClient
-from telethon.errors import SessionPasswordNeededError, PhoneCodeExpiredError
+from telethon.errors import SessionPasswordNeededError
 
-# API credentials
-API_ID = 29299324
-API_HASH = "c262483dda2739c72637661b537dccac"
-PHONE = "+380633952873"
-CODE = "25414"
-
-async def manual_auth():
-    """Manual authentication with provided code"""
+async def manual_authenticate():
+    """Ручна автентифікація з введенням коду"""
     
-    print(f"🔄 Manual authentication for {PHONE}...")
-    print(f"🔐 Using code: {CODE}")
+    api_id = int(os.getenv('TELEGRAM_API_ID', '26886585'))
+    api_hash = os.getenv('TELEGRAM_API_HASH', '166e3719a0d93c12bf76af43fe91425f')
+    phone = os.getenv('TELEGRAM_PHONE', '+380686850166')
     
-    # Clean up old sessions
-    if os.path.exists('auth_session.session'):
-        os.remove('auth_session.session')
-    if os.path.exists('new_account.session'):
-        os.remove('new_account.session')
+    print(f"🔐 Автентифікація для: {phone}")
+    print(f"📱 API ID: {api_id}")
     
-    # Create new session
-    session_name = 'auth_session'
-    client = TelegramClient(session_name, API_ID, API_HASH)
+    client = TelegramClient('monitor_session', api_id, api_hash)
     
     try:
         await client.connect()
         
-        # Check if already authorized
         if await client.is_user_authorized():
-            print("✅ Already authorized")
             me = await client.get_me()
-            print(f"👤 Logged in as: {me.first_name}")
-            await client.disconnect()
-            return True
-        
-        # Request code
-        print("📨 Requesting new code...")
-        try:
-            sent_code = await client.send_code_request(PHONE)
-            print(f"✅ Code sent, hash: {sent_code.phone_code_hash}")
+            print(f"✅ Вже авторизовано як: {me.first_name}")
             
-            # Try to sign in with code
-            print(f"🔐 Signing in with code: {CODE}")
-            await client.sign_in(PHONE, CODE, phone_code_hash=sent_code.phone_code_hash)
-            
-            print("✅ Authentication successful!")
-            
-        except PhoneCodeExpiredError:
-            print("❌ Previous code expired, requesting new one...")
-            sent_code = await client.send_code_request(PHONE)
-            print(f"✅ New code sent, hash: {sent_code.phone_code_hash}")
-            
-            # Notify that new code is needed
-            from telegram import Bot
-            bot = Bot(token="8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc")
-            admin_ids = [6395626140, 7766810783, 564704015]
-            
-            for admin_id in admin_ids:
-                try:
-                    await bot.send_message(
-                        chat_id=admin_id,
-                        text=f"📨 НОВИЙ КОД ПОТРІБЕН\n\nПопередній код застарів.\nНовий код відправлено на {PHONE}\nНадайте новий код для завершення автентифікації."
-                    )
-                except:
-                    pass
-            
-            await client.disconnect()
-            return False
-            
-        except SessionPasswordNeededError:
-            print("❌ 2FA password required")
-            await client.disconnect()
-            return False
-        
-        # Test connection
-        me = await client.get_me()
-        print(f"✅ Successfully authenticated as: {me.first_name}")
-        
-        # Notify success
-        from telegram import Bot
-        bot = Bot(token="8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc")
-        admin_ids = [6395626140, 7766810783, 564704015]
-        
-        message = (
-            f"🎉 АВТЕНТИФІКАЦІЯ ЗАВЕРШЕНА\n\n"
-            f"👤 Акаунт: {me.first_name}\n"
-            f"📱 Номер: {PHONE}\n\n"
-            f"✅ Сесія створена: auth_session.session\n"
-            f"✅ Система готова до запуску\n\n"
-            f"Бот зараз буде запущений!"
-        )
-        
-        for admin_id in admin_ids:
+            # Перевірка доступу до групи
             try:
-                await bot.send_message(chat_id=admin_id, text=message)
-            except:
-                pass
-        
-        await client.disconnect()
-        
-        print("✅ Authentication completed successfully")
-        print("✅ Session saved as auth_session.session")
-        return True
-        
+                entity = await client.get_entity('pereizdvyshneve')
+                print(f"✅ Доступ до групи: {entity.title}")
+                return True
+            except Exception as e:
+                print(f"❌ Помилка доступу до групи: {e}")
+                return False
+        else:
+            print("📞 Відправка коду підтвердження...")
+            
+            # Відправка коду
+            sent_code = await client.send_code_request(phone)
+            print(f"✅ Код відправлено на {phone}")
+            print("💬 Перевірте SMS або повідомлення в Telegram")
+            
+            # Введення коду користувачем
+            while True:
+                try:
+                    code = input("🔢 Введіть код підтвердження: ").strip()
+                    if code:
+                        break
+                    print("❌ Код не може бути порожнім")
+                except KeyboardInterrupt:
+                    print("\n❌ Скасовано користувачем")
+                    return False
+            
+            try:
+                await client.sign_in(phone, code)
+                print("✅ Код підтверджено!")
+                
+            except SessionPasswordNeededError:
+                print("🔒 Потрібен пароль двофакторної автентифікації")
+                while True:
+                    try:
+                        password = input("🔑 Введіть пароль: ").strip()
+                        if password:
+                            break
+                        print("❌ Пароль не може бути порожнім")
+                    except KeyboardInterrupt:
+                        print("\n❌ Скасовано користувачем")
+                        return False
+                
+                await client.sign_in(password=password)
+                print("✅ Пароль підтверджено!")
+            
+            # Перевірка успішної автентифікації
+            if await client.is_user_authorized():
+                me = await client.get_me()
+                print(f"🎉 Успішно авторизовано як: {me.first_name}")
+                
+                # Перевірка доступу до групи
+                try:
+                    entity = await client.get_entity('pereizdvyshneve')
+                    print(f"✅ Доступ до групи підтверджено: {entity.title}")
+                    print("🎯 Готово! Тепер можна запускати автоматичний моніторинг")
+                    return True
+                except Exception as e:
+                    print(f"⚠️ Помилка доступу до групи: {e}")
+                    print("Переконайтеся, що ви є учасником групи https://t.me/pereizdvyshneve")
+                    return True  # Автентифікація успішна, навіть якщо немає доступу до групи
+            else:
+                print("❌ Автентифікація не вдалася")
+                return False
+                
     except Exception as e:
-        print(f"❌ Authentication failed: {e}")
-        await client.disconnect()
+        print(f"❌ Помилка автентифікації: {e}")
         return False
+    finally:
+        await client.disconnect()
 
 if __name__ == "__main__":
-    success = asyncio.run(manual_auth())
-    if success:
-        print("\n🎉 Ready to start bot!")
+    print("🚀 Запуск ручної автентифікації Telegram API")
+    print("📋 Інструкції:")
+    print("   1. Після запуску буде відправлено код на ваш телефон")
+    print("   2. Введіть отриманий код")
+    print("   3. При необхідності введіть пароль 2FA")
+    print("   4. Після успішної автентифікації можна запускати автоматичний моніторинг")
+    print("-" * 60)
+    
+    result = asyncio.run(manual_authenticate())
+    
+    if result:
+        print("\n🎉 Автентифікація завершена успішно!")
+        print("💡 Тепер можете запустити автоматичний моніторинг:")
+        print("   python auto_monitor.py")
     else:
-        print("\n❌ Authentication failed")
+        print("\n❌ Автентифікація не вдалася")
+        print("💡 Спробуйте ще раз або зверніться за допомогою")

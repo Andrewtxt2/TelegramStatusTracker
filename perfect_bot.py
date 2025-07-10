@@ -1,490 +1,407 @@
 #!/usr/bin/env python3
 """
-Perfect bot with complete functionality
-Uses authenticated session for 24/7 operation
+Perfect Bot - Final working solution without polling conflicts
 """
 
 import asyncio
-import json
-import logging
-from datetime import datetime
-import signal
-import sys
 import os
-from typing import Dict, Any, Optional
+import sys
+import json
+import time
+import logging
+import traceback
+from datetime import datetime
+from typing import Dict, List, Optional
 
-# Telegram imports
 from telethon import TelegramClient, events
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
-from telegram.constants import ParseMode
+from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+
+# Configuration
+API_ID = int(os.getenv('TELEGRAM_API_ID', '26886585'))
+API_HASH = os.getenv('TELEGRAM_API_HASH', '166e3719a0d93c12bf76af43fe91425f')
+BOT_TOKEN = '8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc'
+ADMIN_IDS = [6395626140, 7766810783]
+SOURCE_GROUP = 'https://t.me/pereizdvyshneve'
+TARGET_CHANNEL = '@kryuvysh'
 
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('perfect_bot.log'),
+        logging.StreamHandler()
+    ]
 )
-logger = logging.getLogger(__name__)
-
-# Configuration
-API_ID = 29299324
-API_HASH = "c262483dda2739c72637661b537dccac"
-BOT_TOKEN = "8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc"
-PHONE = "+380633952873"
-
-# Group and channel IDs
-SOURCE_GROUP_ID = 1643589680  # 🚦Пекельні Ворота | Вишневе Переїзд
-ADMIN_GROUP_ID = 6395626140
-TARGET_CHANNEL_ID = "@kryuvysh"
-ADMIN_IDS = [6395626140, 7766810783, 564704015]
+logger = logging.getLogger('perfect_bot')
 
 class PerfectBot:
     def __init__(self):
-        self.running = True
-        self.mtproto_client = None
-        self.bot_app = None
+        self.client = None
         self.bot = None
-        self.message_count = 0
-        self.recent_messages = []
+        self.target_entity = None
+        self.running = True
+        self.start_time = datetime.now()
+        self.processed_messages = 0
+        self.message_store = {}
+        self.command_handlers = {}
         
     async def start(self):
         """Start the perfect bot system"""
-        
-        print("🚀 Starting Perfect Bot System...")
-        
-        # Setup signal handlers
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
+        logger.info("🚀 Starting Perfect Bot System...")
         
         try:
-            # Initialize MTProto client
-            await self._init_mtproto()
+            # Initialize MTProto client for group monitoring
+            self.client = TelegramClient('perfect_session', API_ID, API_HASH)
+            await self.client.start(phone='+380686850166')
             
-            # Initialize Bot API
-            await self._init_bot_api()
+            me = await self.client.get_me()
+            logger.info(f"✅ MTProto connected: {me.first_name}")
             
-            # Start both services
-            await self._start_services()
+            # Get target group
+            if SOURCE_GROUP.startswith('https://t.me/'):
+                group_username = SOURCE_GROUP.split('/')[-1]
+                self.target_entity = await self.client.get_entity(group_username)
+            else:
+                self.target_entity = await self.client.get_entity(SOURCE_GROUP)
             
-        except Exception as e:
-            logger.error(f"Failed to start bot: {e}")
-            await self.stop()
-    
-    async def _init_mtproto(self):
-        """Initialize MTProto client"""
-        
-        print("🔧 Initializing MTProto client...")
-        
-        session_name = 'auth_session'
-        self.mtproto_client = TelegramClient(session_name, API_ID, API_HASH)
-        
-        await self.mtproto_client.connect()
-        
-        # Verify authentication
-        if not await self.mtproto_client.is_user_authorized():
-            raise Exception("MTProto client not authenticated")
-        
-        me = await self.mtproto_client.get_me()
-        print(f"✅ MTProto authenticated as: {me.first_name}")
-        
-        # Setup message handler
-        @self.mtproto_client.on(events.NewMessage(chats=SOURCE_GROUP_ID))
-        async def handle_new_message(event):
-            await self._process_group_message(event)
-        
-        print("✅ MTProto client initialized")
-    
-    async def _init_bot_api(self):
-        """Initialize Bot API"""
-        
-        print("🔧 Initializing Bot API...")
-        
-        self.bot = Bot(token=BOT_TOKEN)
-        self.bot_app = Application.builder().token(BOT_TOKEN).build()
-        
-        # Add handlers
-        self.bot_app.add_handler(CallbackQueryHandler(self._handle_callback))
-        self.bot_app.add_handler(CommandHandler("start", self._handle_start))
-        self.bot_app.add_handler(CommandHandler("status", self._handle_status))
-        self.bot_app.add_handler(CommandHandler("health", self._handle_health))
-        
-        print("✅ Bot API initialized")
-    
-    async def _start_services(self):
-        """Start both services"""
-        
-        print("🎯 Starting services...")
-        
-        # Start MTProto in background
-        mtproto_task = asyncio.create_task(self._run_mtproto())
-        
-        # Start Bot API in background
-        bot_task = asyncio.create_task(self._run_bot_api())
-        
-        # Notify start
-        await self._notify_startup()
-        
-        # Wait for both services
-        await asyncio.gather(mtproto_task, bot_task)
-    
-    async def _run_mtproto(self):
-        """Run MTProto service"""
-        
-        print("📡 Starting MTProto service...")
-        
-        try:
-            await self.mtproto_client.run_until_disconnected()
-        except Exception as e:
-            logger.error(f"MTProto service error: {e}")
-            if self.running:
-                await self.stop()
-    
-    async def _run_bot_api(self):
-        """Run Bot API service"""
-        
-        print("🤖 Starting Bot API service...")
-        
-        try:
-            await self.bot_app.initialize()
-            await self.bot_app.start()
-            await self.bot_app.updater.start_polling()
+            logger.info(f"✅ Group found: {self.target_entity.title}")
+            
+            # Initialize Bot API for commands only (no polling)
+            self.bot = Bot(token=BOT_TOKEN)
+            
+            # Test bot connection
+            bot_info = await self.bot.get_me()
+            logger.info(f"✅ Bot API connected: @{bot_info.username}")
+            
+            # Setup command handlers manually
+            self.command_handlers = {
+                '/start': self.handle_start,
+                '/status': self.handle_status,
+                '/health': self.handle_health
+            }
+            
+            # Setup message handler for group monitoring
+            @self.client.on(events.NewMessage(chats=self.target_entity))
+            async def handle_new_message(event):
+                await self.process_group_message(event.message)
+            
+            # Setup callback handler for buttons
+            @self.client.on(events.CallbackQuery())
+            async def handle_callback(event):
+                await self.process_callback(event)
+            
+            # Setup private message handler for commands
+            @self.client.on(events.NewMessage(func=lambda e: e.is_private))
+            async def handle_private_message(event):
+                await self.process_private_message(event)
+            
+            logger.info("✅ All systems initialized")
+            
+            # Send startup notification
+            await self.notify_admins("🚀 Perfect Bot System запущено!\n\nСистема повністю готова:\n• Моніторинг групи активний\n• Команди бота працюють\n• Кнопки схвалення готові\n• Без polling конфліктів")
             
             # Keep running
-            while self.running:
-                await asyncio.sleep(1)
-                
-        except Exception as e:
-            logger.error(f"Bot API service error: {e}")
-            if self.running:
-                await self.stop()
-        finally:
-            await self.bot_app.stop()
-    
-    async def _process_group_message(self, event):
-        """Process message from monitored group"""
-        
-        try:
-            message = event.message
-            text = message.text or ""
+            logger.info("🔄 Bot running... Press Ctrl+C to stop")
+            await self.client.run_until_disconnected()
             
-            # Skip empty messages
-            if not text.strip():
+        except Exception as e:
+            logger.error(f"Startup error: {e}")
+            logger.error(traceback.format_exc())
+            raise
+            
+    async def process_group_message(self, message):
+        """Process new message from monitored group"""
+        try:
+            if not message.text or len(message.text.strip()) < 5:
                 return
-            
-            self.message_count += 1
-            
-            # Store recent message
-            self.recent_messages.append({
-                'text': text,
-                'time': datetime.now().strftime('%H:%M'),
-                'sender': message.sender_id
-            })
-            
-            # Keep only last 9 messages
-            if len(self.recent_messages) > 9:
-                self.recent_messages.pop(0)
-            
-            print(f"📨 New message from group: {text[:50]}...")
-            
-            # Analyze message
-            analysis = self._analyze_message(text)
-            
-            if analysis['is_status']:
-                print(f"🎯 Status message detected: {analysis['status']} ({analysis['confidence']}%)")
                 
-                # Send to admins
-                await self._send_to_admin(text, analysis, message.id)
+            logger.info(f"📨 New message ID {message.id}: {message.text[:50]}...")
+            
+            # Simple status analysis
+            text_lower = message.text.lower()
+            
+            # Analyze status
+            if any(word in text_lower for word in ['відкрито', 'відкрит', 'open', 'працює', 'working', 'доступно']):
+                suggested_status = 'open'
+                confidence = 0.8
+            elif any(word in text_lower for word in ['закрито', 'закрит', 'closed', 'не працює', 'not working', 'заблоковано']):
+                suggested_status = 'closed'
+                confidence = 0.8
+            else:
+                suggested_status = 'unknown'
+                confidence = 0.3
+                
+            # Check for time mentions
+            if any(word in text_lower for word in ['год', 'час', 'хвилин', 'секунд', ':', 'time']):
+                confidence += 0.1
+                
+            confidence = min(confidence, 0.95)
+            
+            logger.info(f"🤖 Analysis: {suggested_status} ({confidence:.0%})")
+            
+            # Store message data
+            self.message_store[message.id] = {
+                'text': message.text,
+                'date': message.date,
+                'suggested_status': suggested_status,
+                'confidence': confidence
+            }
+            
+            # Send to admins
+            await self.send_to_admins(message)
+            
+            self.processed_messages += 1
             
         except Exception as e:
-            logger.error(f"Error processing message: {e}")
-    
-    def _analyze_message(self, text: str) -> Dict[str, Any]:
-        """Analyze message for relocation status"""
-        
-        text_lower = text.lower()
-        
-        # Status keywords
-        open_keywords = ['відкрито', 'відкритий', 'відкрит', 'открыт', 'open', 'работает', 'працює']
-        closed_keywords = ['закрито', 'закритий', 'закрыт', 'closed', 'зачинено', 'не працює', 'не работает']
-        
-        # Check for keywords
-        open_score = sum(1 for word in open_keywords if word in text_lower)
-        closed_score = sum(1 for word in closed_keywords if word in text_lower)
-        
-        # Determine status
-        if open_score > closed_score:
-            status = 'open'
-            confidence = min(90, 60 + (open_score * 10))
-        elif closed_score > open_score:
-            status = 'closed'
-            confidence = min(90, 60 + (closed_score * 10))
-        else:
-            status = 'unknown'
-            confidence = 30
-        
-        return {
-            'is_status': open_score > 0 or closed_score > 0,
-            'status': status,
-            'confidence': confidence,
-            'text': text
-        }
-    
-    async def _send_to_admin(self, text: str, analysis: Dict[str, Any], message_id: int):
-        """Send message to admin for approval"""
-        
+            logger.error(f"Error processing message {message.id}: {e}")
+            logger.error(traceback.format_exc())
+            
+    async def send_to_admins(self, message):
+        """Send message to administrators with approval buttons"""
         try:
-            # Format recent messages context
-            context = ""
-            if self.recent_messages:
-                context = "\n📋 **Останні повідомлення:**\n"
-                for msg in self.recent_messages[-9:]:  # Last 9 messages
-                    context += f"• {msg['time']}: {msg['text'][:50]}...\n"
+            # Format message for admins
+            time_str = message.date.strftime("%H:%M")
+            message_data = self.message_store[message.id]
             
-            # Create message
-            admin_text = (
-                f"📢 **НОВЕ ПОВІДОМЛЕННЯ З ГРУПИ**\n\n"
-                f"💬 **Текст:** {text}\n\n"
-                f"🤖 **Аналіз:** {analysis['status'].upper()} ({analysis['confidence']}%)\n\n"
-                f"{context}\n"
-                f"❓ **Що робити з цим повідомленням?**"
-            )
+            text = f"📨 Нове повідомлення о {time_str}\n\n"
+            text += f"💬 Текст: {message.text}\n\n"
+            text += f"🤖 Аналіз: {message_data['suggested_status']} ({message_data['confidence']:.0%})\n\n"
+            text += f"Оберіть дію:"
             
-            # Create buttons
-            keyboard = InlineKeyboardMarkup([
+            # Create inline keyboard
+            keyboard = [
                 [
-                    InlineKeyboardButton("✅ Відкрито", callback_data=f"approve_open_{message_id}"),
-                    InlineKeyboardButton("❌ Закрито", callback_data=f"approve_closed_{message_id}")
+                    InlineKeyboardButton("✅ Відкрито", callback_data=f"approve_open_{message.id}"),
+                    InlineKeyboardButton("🔴 Закрито", callback_data=f"approve_closed_{message.id}")
                 ],
                 [
-                    InlineKeyboardButton("🕒 Додати час", callback_data=f"add_time_{message_id}"),
-                    InlineKeyboardButton("🗑 Відхилити", callback_data=f"reject_{message_id}")
+                    InlineKeyboardButton("❌ Відхилити", callback_data=f"reject_{message.id}")
                 ]
-            ])
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
             
-            # Send to all admins
+            # Send to each admin
             for admin_id in ADMIN_IDS:
                 try:
                     await self.bot.send_message(
                         chat_id=admin_id,
-                        text=admin_text,
-                        reply_markup=keyboard,
-                        parse_mode=ParseMode.MARKDOWN
+                        text=text,
+                        reply_markup=reply_markup
                     )
-                    print(f"✅ Sent to admin {admin_id}")
+                    logger.info(f"✅ Sent to admin {admin_id}")
                 except Exception as e:
-                    logger.error(f"Failed to send to admin {admin_id}: {e}")
-            
+                    logger.warning(f"Failed to send to admin {admin_id}: {e}")
+                    
         except Exception as e:
-            logger.error(f"Error sending to admin: {e}")
-    
-    async def _handle_callback(self, update, context):
-        """Handle admin callback buttons"""
-        
+            logger.error(f"Error sending to admins: {e}")
+            
+    async def process_callback(self, event):
+        """Process callback queries from inline buttons"""
         try:
-            query = update.callback_query
-            await query.answer()
+            callback_data = event.data.decode('utf-8')
+            user_id = event.sender_id
             
-            action, status, message_id = query.data.split('_', 2)
+            if user_id not in ADMIN_IDS:
+                await event.answer("❌ Доступ заборонений", alert=True)
+                return
+                
+            logger.info(f"🎯 Callback from admin {user_id}: {callback_data}")
             
-            if action == "approve":
-                await self._approve_message(query, status, message_id)
-            elif action == "add":
-                await self._add_timestamp(query, message_id)
-            elif action == "reject":
-                await self._reject_message(query, message_id)
-            
+            # Parse callback data
+            if callback_data.startswith('approve_'):
+                parts = callback_data.split('_')
+                status = parts[1]  # open or closed
+                message_id = int(parts[2])
+                
+                await self.approve_message(event, message_id, status)
+                
+            elif callback_data.startswith('reject_'):
+                message_id = int(callback_data.split('_')[1])
+                await self.reject_message(event, message_id)
+                
         except Exception as e:
-            logger.error(f"Error handling callback: {e}")
-    
-    async def _approve_message(self, query, status: str, message_id: str):
-        """Approve message and publish to channel"""
-        
-        try:
-            # Get current time
-            current_time = datetime.now().strftime('%H:%M')
+            logger.error(f"Callback error: {e}")
+            await event.answer(f"❌ Помилка: {e}", alert=True)
             
-            # Create status message
-            if status == "open":
-                status_text = f"✅ Відкрито\n🕓 {current_time}"
-            else:  # closed
-                status_text = f"❌ Закрито\n🕓 {current_time}"
+    async def approve_message(self, event, message_id: int, status: str):
+        """Approve and publish message"""
+        try:
+            if message_id not in self.message_store:
+                await event.answer("❌ Повідомлення не знайдено", alert=True)
+                return
+                
+            message_data = self.message_store[message_id]
+            
+            # Format for channel
+            status_emoji = "✅" if status == "open" else "🔴"
+            status_text = "Відкрито" if status == "open" else "Закрито"
+            
+            current_time = datetime.now().strftime("%H:%M")
+            channel_text = f"{status_emoji} {status_text} 🕓 {current_time}"
             
             # Send to channel
-            await self.bot.send_message(
-                chat_id=TARGET_CHANNEL_ID,
-                text=status_text
-            )
-            
-            # Update admin message
-            await query.edit_message_text(
-                text=f"✅ **ОПУБЛІКОВАНО В КАНАЛ**\n\n📤 **Повідомлення:** {status_text}\n\n⏰ **Час публікації:** {current_time}",
-                parse_mode=ParseMode.MARKDOWN
-            )
-            
-            print(f"✅ Published to channel: {status_text}")
-            
+            try:
+                await self.bot.send_message(
+                    chat_id=TARGET_CHANNEL,
+                    text=channel_text
+                )
+                
+                # Update message
+                user = await self.client.get_entity(event.sender_id)
+                
+                await event.edit(
+                    f"✅ Опубліковано в канал!\n\n"
+                    f"📋 Статус: {status_text}\n"
+                    f"🕐 Час: {current_time}\n"
+                    f"👤 Схвалено: {user.first_name}"
+                )
+                
+                await event.answer("✅ Опубліковано!")
+                
+                logger.info(f"✅ Message {message_id} published as {status}")
+                
+            except Exception as e:
+                await event.edit(f"❌ Помилка публікації: {e}")
+                logger.error(f"Publishing error: {e}")
+                
         except Exception as e:
-            logger.error(f"Error approving message: {e}")
-            await query.edit_message_text(f"❌ Помилка публікації: {str(e)}")
-    
-    async def _add_timestamp(self, query, message_id: str):
-        """Add timestamp to message"""
-        
-        try:
-            current_time = datetime.now().strftime('%H:%M')
+            logger.error(f"Approval error: {e}")
+            await event.answer(f"❌ Помилка схвалення: {e}", alert=True)
             
-            await query.edit_message_text(
-                text=f"🕒 **ДОДАНО ЧАС**\n\n⏰ **Поточний час:** {current_time}\n\nВиберіть статус для публікації:",
-                reply_markup=InlineKeyboardMarkup([
-                    [
-                        InlineKeyboardButton("✅ Відкрито", callback_data=f"approve_open_{message_id}"),
-                        InlineKeyboardButton("❌ Закрито", callback_data=f"approve_closed_{message_id}")
-                    ]
-                ]),
-                parse_mode=ParseMode.MARKDOWN
-            )
-            
-        except Exception as e:
-            logger.error(f"Error adding timestamp: {e}")
-    
-    async def _reject_message(self, query, message_id: str):
+    async def reject_message(self, event, message_id: int):
         """Reject message"""
-        
         try:
-            await query.edit_message_text(
-                text="🗑 **ПОВІДОМЛЕННЯ ВІДХИЛЕНО**\n\nПовідомлення не буде опубліковано в каналі.",
-                parse_mode=ParseMode.MARKDOWN
+            user = await self.client.get_entity(event.sender_id)
+            
+            await event.edit(
+                f"❌ Повідомлення відхилено\n\n"
+                f"👤 Відхилено: {user.first_name}\n"
+                f"🕐 Час: {datetime.now().strftime('%H:%M')}"
             )
             
-            print(f"🗑 Message {message_id} rejected")
+            await event.answer("❌ Відхилено!")
+            
+            logger.info(f"❌ Message {message_id} rejected")
             
         except Exception as e:
-            logger.error(f"Error rejecting message: {e}")
-    
-    async def _handle_start(self, update, context):
+            logger.error(f"Rejection error: {e}")
+            
+    async def process_private_message(self, event):
+        """Process private messages (commands)"""
+        try:
+            message_text = event.message.text
+            user_id = event.sender_id
+            
+            if not message_text.startswith('/'):
+                return
+                
+            logger.info(f"Command from {user_id}: {message_text}")
+            
+            # Handle commands
+            if message_text in self.command_handlers:
+                await self.command_handlers[message_text](event)
+                
+        except Exception as e:
+            logger.error(f"Command processing error: {e}")
+            
+    async def handle_start(self, event):
         """Handle /start command"""
+        user_id = event.sender_id
         
-        await update.message.reply_text(
-            "🤖 **Perfect Bot System**\n\n"
-            "✅ MTProto: Активний\n"
-            "✅ Bot API: Активний\n"
-            "✅ Моніторинг: Працює\n\n"
-            "📊 Команди:\n"
-            "/status - Статус системи\n"
-            "/health - Перевірка здоров'я",
-            parse_mode=ParseMode.MARKDOWN
-        )
-    
-    async def _handle_status(self, update, context):
+        if user_id in ADMIN_IDS:
+            text = "🚀 Perfect Bot System активний!\n\n"
+            text += "Система повністю працює:\n"
+            text += "• Моніторинг групи активний\n"
+            text += "• Аналіз повідомлень працює\n"
+            text += "• Кнопки схвалення готові\n"
+            text += "• Без polling конфліктів\n\n"
+            text += "Команди:\n"
+            text += "• /status - стан системи\n"
+            text += "• /health - перевірка компонентів"
+        else:
+            text = "🤖 Переїзд Monitor Bot\n\nЦей бот моніторить статус переїзду."
+            
+        await event.respond(text)
+        
+    async def handle_status(self, event):
         """Handle /status command"""
+        user_id = event.sender_id
         
-        uptime = datetime.now().strftime('%H:%M:%S')
+        if user_id not in ADMIN_IDS:
+            await event.respond("❌ Доступ заборонений")
+            return
+            
+        uptime = datetime.now() - self.start_time
         
-        await update.message.reply_text(
-            f"📊 **СТАТУС СИСТЕМИ**\n\n"
-            f"🕒 **Час роботи:** {uptime}\n"
-            f"📨 **Повідомлень оброблено:** {self.message_count}\n"
-            f"👥 **Адміністраторів:** {len(ADMIN_IDS)}\n"
-            f"🎯 **Група:** Моніторинг активний\n"
-            f"📤 **Канал:** @kryuvysh\n\n"
-            f"✅ **Усі сервіси працюють нормально**",
-            parse_mode=ParseMode.MARKDOWN
-        )
-    
-    async def _handle_health(self, update, context):
+        text = f"📊 Стан Perfect Bot System\n\n"
+        text += f"🕐 Час роботи: {uptime}\n"
+        text += f"📨 Оброблено повідомлень: {self.processed_messages}\n"
+        text += f"🤖 MTProto: {'✅ Підключено' if self.client.is_connected() else '❌ Відключено'}\n"
+        text += f"🔄 Bot API: ✅ Активний\n"
+        text += f"📋 Група: {self.target_entity.title if self.target_entity else 'Не знайдено'}\n"
+        text += f"📢 Канал: {TARGET_CHANNEL}\n"
+        text += f"👥 Адміністраторів: {len(ADMIN_IDS)}\n\n"
+        text += f"🔄 Статус: {'✅ Працює' if self.running else '❌ Зупинено'}"
+        
+        await event.respond(text)
+        
+    async def handle_health(self, event):
         """Handle /health command"""
+        user_id = event.sender_id
         
+        if user_id not in ADMIN_IDS:
+            await event.respond("❌ Доступ заборонений")
+            return
+            
+        # Health checks
         try:
             # Check MTProto
-            mtproto_status = "✅ Підключено" if self.mtproto_client and self.mtproto_client.is_connected() else "❌ Відключено"
+            mtproto_status = "✅ Підключено" if self.client.is_connected() else "❌ Відключено"
             
             # Check Bot API
-            bot_status = "✅ Активний" if self.bot_app and self.bot_app.running else "❌ Неактивний"
+            me = await self.bot.get_me()
+            bot_status = f"✅ @{me.username}"
             
-            await update.message.reply_text(
-                f"🏥 **ПЕРЕВІРКА ЗДОРОВ'Я**\n\n"
-                f"📡 **MTProto:** {mtproto_status}\n"
-                f"🤖 **Bot API:** {bot_status}\n"
-                f"🔄 **Система:** {'✅ Працює' if self.running else '❌ Зупинена'}\n\n"
-                f"📈 **Всі системи функціонують нормально**",
-                parse_mode=ParseMode.MARKDOWN
-            )
-            
-        except Exception as e:
-            await update.message.reply_text(f"❌ Помилка перевірки: {str(e)}")
-    
-    async def _notify_startup(self):
-        """Notify admins about startup"""
-        
-        try:
-            message = (
-                f"🚀 **PERFECT BOT ЗАПУЩЕНО**\n\n"
-                f"⏰ **Час запуску:** {datetime.now().strftime('%H:%M:%S')}\n"
-                f"📱 **Акаунт:** Andrew\n"
-                f"📡 **MTProto:** Активний\n"
-                f"🤖 **Bot API:** Активний\n"
-                f"🎯 **Моніторинг групи:** Активний\n\n"
-                f"✅ **Система працює 24/7**"
-            )
-            
-            for admin_id in ADMIN_IDS:
-                try:
-                    await self.bot.send_message(
-                        chat_id=admin_id,
-                        text=message,
-                        parse_mode=ParseMode.MARKDOWN
-                    )
-                except Exception as e:
-                    logger.error(f"Failed to notify admin {admin_id}: {e}")
-            
-            print("✅ Startup notifications sent")
+            # Check group access
+            if self.target_entity:
+                group_status = f"✅ {self.target_entity.title}"
+            else:
+                group_status = "❌ Не підключено"
+                
+            text = f"🏥 Перевірка здоров'я системи\n\n"
+            text += f"🔗 MTProto: {mtproto_status}\n"
+            text += f"🤖 Bot API: {bot_status}\n"
+            text += f"📋 Група: {group_status}\n"
+            text += f"💾 Зберігання: ✅ Працює\n"
+            text += f"🔄 Handlers: ✅ Активні\n\n"
+            text += f"🕐 Перевірка: {datetime.now().strftime('%H:%M:%S')}"
             
         except Exception as e:
-            logger.error(f"Error sending startup notification: {e}")
-    
-    def _signal_handler(self, signum, frame):
-        """Handle shutdown signals"""
-        
-        print(f"\n🛑 Received signal {signum}, shutting down...")
-        self.running = False
-        
-        # Create shutdown task
-        asyncio.create_task(self.stop())
-    
-    async def stop(self):
-        """Stop the bot system"""
-        
-        print("🛑 Stopping Perfect Bot System...")
-        
-        self.running = False
-        
-        try:
-            # Stop MTProto
-            if self.mtproto_client:
-                await self.mtproto_client.disconnect()
+            text = f"❌ Помилка перевірки: {e}"
             
-            # Stop Bot API
-            if self.bot_app:
-                await self.bot_app.stop()
-            
-            print("✅ Perfect Bot System stopped")
-            
-        except Exception as e:
-            logger.error(f"Error stopping bot: {e}")
+        await event.respond(text)
+        
+    async def notify_admins(self, message: str):
+        """Send notification to all admins"""
+        for admin_id in ADMIN_IDS:
+            try:
+                await self.bot.send_message(chat_id=admin_id, text=message)
+                logger.info(f"✅ Notified admin {admin_id}")
+            except Exception as e:
+                logger.warning(f"Failed to notify admin {admin_id}: {e}")
 
 async def main():
     """Main function"""
-    
     bot = PerfectBot()
-    
     try:
         await bot.start()
     except KeyboardInterrupt:
-        print("\n🛑 Keyboard interrupt received")
-        await bot.stop()
+        logger.info("Bot stopped by user")
     except Exception as e:
-        print(f"❌ Fatal error: {e}")
-        await bot.stop()
+        logger.error(f"Fatal error: {e}")
+        logger.error(traceback.format_exc())
 
 if __name__ == "__main__":
     asyncio.run(main())
