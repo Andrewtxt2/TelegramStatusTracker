@@ -179,6 +179,8 @@ class StableRenderBot:
             
             # Manual polling loop - completely avoid Application/Updater
             offset = 0
+            consecutive_conflicts = 0
+            
             while self.running:
                 try:
                     # Get updates manually using bot directly
@@ -187,6 +189,9 @@ class StableRenderBot:
                         timeout=10,
                         allowed_updates=["callback_query", "message"]
                     )
+                    
+                    # Reset conflict counter on success
+                    consecutive_conflicts = 0
                     
                     # Process each update manually
                     for update in updates:
@@ -210,8 +215,22 @@ class StableRenderBot:
                     await asyncio.sleep(1)
                     
                 except Exception as poll_error:
-                    logger.error(f"❌ Polling error: {poll_error}")
-                    await asyncio.sleep(5)
+                    error_str = str(poll_error)
+                    
+                    # Handle 409 Conflict specifically
+                    if "Conflict" in error_str and "terminated by other getUpdates" in error_str:
+                        consecutive_conflicts += 1
+                        logger.warning(f"⚠️ Bot conflict detected ({consecutive_conflicts}/3): Multiple instances running")
+                        
+                        if consecutive_conflicts >= 3:
+                            logger.error("❌ Too many conflicts, disabling Bot API polling to avoid duplicate instances")
+                            logger.info("🔄 MTProto will continue working, Bot API polling disabled")
+                            return  # Exit polling but keep MTProto running
+                        else:
+                            await asyncio.sleep(30)  # Wait longer for conflicts
+                    else:
+                        logger.error(f"❌ Polling error: {poll_error}")
+                        await asyncio.sleep(5)
                     
             logger.info("✅ Bot API polling completed")
                 
