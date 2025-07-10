@@ -16,6 +16,10 @@ author = "agent"
 task = "workflow.run"
 args = "Telegram Bot Setup"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Perfect Bot"
+
 [[workflows.workflow]]
 name = "Telegram Bot Setup"
 author = "agent"
@@ -104,6 +108,14 @@ args = "sleep 3"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "python3 standalone_bot.py"
+
+[[workflows.workflow]]
+name = "Perfect Bot"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 perfect_bot.py"
 
 [deployment]
 deploymentTarget = "gce"

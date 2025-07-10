@@ -1,59 +1,80 @@
 #!/usr/bin/env python3
-import asyncio
-import sys
-from telethon import TelegramClient
-from telethon.errors import SessionPasswordNeededError
+"""
+Simple authentication - just request code
+"""
 
-async def authenticate():
-    api_id = 26886585
-    api_hash = "166e3719a0d93c12bf76af43fe91425f"
-    phone = "+380686850166"
+import asyncio
+import os
+from telethon import TelegramClient
+
+# API credentials
+API_ID = 29299324
+API_HASH = "c262483dda2739c72637661b537dccac"
+PHONE = "+380633952873"
+
+async def request_new_code():
+    """Request new authentication code"""
     
-    print(f"Автентифікація для: {phone}")
+    print(f"🔄 Requesting new code for {PHONE}...")
     
-    client = TelegramClient('session', api_id, api_hash)
+    # Clean up old sessions
+    if os.path.exists('auth_session.session'):
+        os.remove('auth_session.session')
+    if os.path.exists('new_account.session'):
+        os.remove('new_account.session')
+    
+    # Create new session
+    session_name = 'auth_session'
+    client = TelegramClient(session_name, API_ID, API_HASH)
     
     try:
         await client.connect()
         
-        if await client.is_user_authorized():
-            me = await client.get_me()
-            print(f"Вже авторизовано: {me.first_name}")
-            return True
+        # Request code
+        print("📨 Sending new code...")
+        sent_code = await client.send_code_request(PHONE)
+        print(f"✅ New code sent!")
+        print(f"📱 Check SMS on {PHONE}")
         
-        print("Відправка коду...")
-        await client.send_code_request(phone)
-        print(f"Код відправлено на {phone}")
+        # Save the phone_code_hash for later use
+        with open('code_hash.txt', 'w') as f:
+            f.write(sent_code.phone_code_hash)
         
-        code = input("Введіть код: ")
+        print(f"✅ Code hash saved: {sent_code.phone_code_hash}")
         
-        try:
-            await client.sign_in(phone, code)
-        except SessionPasswordNeededError:
-            password = input("Введіть пароль 2FA: ")
-            await client.sign_in(password=password)
+        # Notify admins
+        from telegram import Bot
+        bot = Bot(token="8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc")
+        admin_ids = [6395626140, 7766810783, 564704015]
         
-        me = await client.get_me()
-        print(f"Успішно авторизовано: {me.first_name}")
+        message = (
+            f"📨 НОВИЙ КОД ВІДПРАВЛЕНО\n\n"
+            f"📱 Номер: {PHONE}\n"
+            f"🔐 Перевірте SMS та надайте новий код\n\n"
+            f"Після отримання коду система буде готова до запуску з усіма функціями."
+        )
         
-        # Перевірка групи
-        try:
-            entity = await client.get_entity('pereizdvyshneve')
-            print(f"Доступ до групи: {entity.title}")
-        except:
-            print("Група не знайдена, але авторизація успішна")
+        for admin_id in admin_ids:
+            try:
+                await bot.send_message(chat_id=admin_id, text=message)
+            except:
+                pass
         
+        await client.disconnect()
+        
+        print("✅ New code requested successfully")
+        print("📱 Check your SMS and provide the new code")
         return True
         
     except Exception as e:
-        print(f"Помилка: {e}")
-        return False
-    finally:
+        print(f"❌ Code request failed: {e}")
         await client.disconnect()
+        return False
 
 if __name__ == "__main__":
-    success = asyncio.run(authenticate())
+    success = asyncio.run(request_new_code())
     if success:
-        print("Готово! Можна запускати моніторинг")
+        print("\n📨 New code sent!")
+        print("Please provide the new SMS code when received")
     else:
-        print("Помилка автентифікації")
+        print("\n❌ Failed to send new code")
