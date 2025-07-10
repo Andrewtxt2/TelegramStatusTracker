@@ -168,39 +168,40 @@ class StableRenderBot:
             logger.error(f"❌ Message monitoring error: {e}")
             
     async def start_bot_polling(self):
-        """Start Bot API polling using manual approach"""
+        """Start Bot API polling using manual approach - NO UPDATER"""
         logger.info("🔄 Starting Bot API polling...")
         
         try:
-            # Create application
-            self.app = Application.builder().token(BOT_TOKEN).build()
-            
-            # Add handlers
-            self.app.add_handler(CallbackQueryHandler(self.handle_callback))
-            self.app.add_handler(CommandHandler("start", self.handle_start))
-            self.app.add_handler(CommandHandler("status", self.handle_status_command))
-            
-            # Initialize and start
-            await self.app.initialize()
-            await self.app.start()
+            # Create simple bot instance (no Application, no Updater)
+            self.bot = TelegramBot(token=BOT_TOKEN)
             
             logger.info("✅ Bot API initialized")
             
-            # Manual polling loop to avoid AttributeError
+            # Manual polling loop - completely avoid Application/Updater
             offset = 0
             while self.running:
                 try:
-                    # Get updates manually
-                    updates = await self.app.bot.get_updates(
+                    # Get updates manually using bot directly
+                    updates = await self.bot.get_updates(
                         offset=offset,
                         timeout=10,
                         allowed_updates=["callback_query", "message"]
                     )
                     
-                    # Process each update
+                    # Process each update manually
                     for update in updates:
                         try:
-                            await self.app.process_update(update)
+                            # Handle callback queries manually
+                            if update.callback_query:
+                                await self.handle_callback_manual(update.callback_query)
+                            
+                            # Handle commands manually
+                            if update.message and update.message.text:
+                                if update.message.text.startswith('/start'):
+                                    await self.handle_start_manual(update.message)
+                                elif update.message.text.startswith('/status'):
+                                    await self.handle_status_manual(update.message)
+                                    
                             offset = update.update_id + 1
                         except Exception as process_error:
                             logger.error(f"❌ Update processing error: {process_error}")
@@ -212,7 +213,7 @@ class StableRenderBot:
                     logger.error(f"❌ Polling error: {poll_error}")
                     await asyncio.sleep(5)
                     
-            logger.info("✅ Bot API polling started")
+            logger.info("✅ Bot API polling completed")
                 
         except Exception as e:
             logger.error(f"❌ Bot polling error: {e}")
@@ -367,10 +368,9 @@ class StableRenderBot:
         except Exception as e:
             logger.error(f"❌ Send to admins error: {e}")
             
-    async def handle_callback(self, update, context):
-        """Handle callback queries"""
+    async def handle_callback_manual(self, query):
+        """Handle callback queries manually"""
         try:
-            query = update.callback_query
             user_id = query.from_user.id
             data = query.data
             
@@ -403,6 +403,46 @@ class StableRenderBot:
                     
         except Exception as e:
             logger.error(f"❌ Callback error: {e}")
+            
+    async def handle_start_manual(self, message):
+        """Handle /start command manually"""
+        try:
+            await self.bot.send_message(
+                chat_id=message.chat.id,
+                text="🤖 Stable Render Bot активний!\n\n"
+                     "✅ MTProto моніторинг\n"
+                     "✅ Bot API polling\n"
+                     "✅ Web server\n\n"
+                     "Команди: /status"
+            )
+        except Exception as e:
+            logger.error(f"❌ Start command error: {e}")
+            
+    async def handle_status_manual(self, message):
+        """Handle /status command manually"""
+        try:
+            uptime = datetime.now() - self.startup_time
+            time_since_last = (datetime.now() - self.last_message_time).total_seconds()
+            
+            text = (
+                f"📊 Stable Render Bot Status\n\n"
+                f"✅ Uptime: {uptime}\n"
+                f"📋 Група: {self.target_entity.title if self.target_entity else 'N/A'}\n"
+                f"📢 Канал: {TARGET_CHANNEL}\n"
+                f"💬 Повідомлення: {len(self.recent_messages)}\n"
+                f"🕓 Останнє: {time_since_last/60:.1f} хв назад\n"
+                f"🔗 MTProto: {'✅' if self.client and self.client.is_connected() else '❌'}\n"
+                f"🤖 Bot API: {'✅' if self.bot else '❌'}\n"
+                f"🌐 Web: {'✅' if self.web_app else '❌'}"
+            )
+            await self.bot.send_message(chat_id=message.chat.id, text=text)
+        except Exception as e:
+            logger.error(f"❌ Status command error: {e}")
+            
+    async def handle_callback(self, update, context):
+        """Handle callback queries - kept for compatibility"""
+        if hasattr(update, 'callback_query'):
+            await self.handle_callback_manual(update.callback_query)
             
     async def approve_message(self, query, message_id: int, status: str):
         """Approve and publish message"""
