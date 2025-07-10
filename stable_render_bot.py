@@ -168,7 +168,7 @@ class StableRenderBot:
             logger.error(f"❌ Message monitoring error: {e}")
             
     async def start_bot_polling(self):
-        """Start Bot API polling"""
+        """Start Bot API polling using manual approach"""
         logger.info("🔄 Starting Bot API polling...")
         
         try:
@@ -184,36 +184,35 @@ class StableRenderBot:
             await self.app.initialize()
             await self.app.start()
             
-            # Start polling with proper error handling
-            try:
-                updater = self.app.updater
-                await updater.start_polling(
-                    drop_pending_updates=True,
-                    allowed_updates=["callback_query", "message"]
-                )
-                logger.info("✅ Bot API polling started")
-            except AttributeError as attr_error:
-                logger.warning(f"⚠️ Polling method not available: {attr_error}")
-                logger.info("🔄 Using alternative polling approach...")
-                
-                # Alternative: Manual polling loop
-                while self.running:
-                    try:
-                        await asyncio.sleep(1)
-                        # Process updates manually if needed
-                        if hasattr(self.app, 'process_update'):
-                            updates = await self.app.bot.get_updates()
-                            for update in updates:
-                                await self.app.process_update(update)
-                    except Exception as poll_error:
-                        logger.error(f"❌ Manual polling error: {poll_error}")
-                        await asyncio.sleep(5)
-                        
-                logger.info("✅ Alternative polling active")
+            logger.info("✅ Bot API initialized")
             
-            # Keep polling alive
+            # Manual polling loop to avoid AttributeError
+            offset = 0
             while self.running:
-                await asyncio.sleep(5)
+                try:
+                    # Get updates manually
+                    updates = await self.app.bot.get_updates(
+                        offset=offset,
+                        timeout=10,
+                        allowed_updates=["callback_query", "message"]
+                    )
+                    
+                    # Process each update
+                    for update in updates:
+                        try:
+                            await self.app.process_update(update)
+                            offset = update.update_id + 1
+                        except Exception as process_error:
+                            logger.error(f"❌ Update processing error: {process_error}")
+                    
+                    # Small delay between polling
+                    await asyncio.sleep(1)
+                    
+                except Exception as poll_error:
+                    logger.error(f"❌ Polling error: {poll_error}")
+                    await asyncio.sleep(5)
+                    
+            logger.info("✅ Bot API polling started")
                 
         except Exception as e:
             logger.error(f"❌ Bot polling error: {e}")
@@ -252,7 +251,10 @@ class StableRenderBot:
                 return
                 
             # Skip old messages (more than 1 hour)
-            if message.date < datetime.now() - timedelta(hours=1):
+            # Convert to UTC for comparison
+            from datetime import timezone
+            now_utc = datetime.now(timezone.utc)
+            if message.date < now_utc - timedelta(hours=1):
                 logger.info(f"⏩ Skipping old message {message.id}")
                 return
                 
