@@ -229,11 +229,6 @@ Changelog:
 - July 10, 2025. Added user ID 564704015 to admin list for message access
 - July 10, 2025. Resolved "This event loop is already running" error with proper async polling setup
 - July 10, 2025. System now fully operational: MTProto monitoring + Bot API callbacks + Web server
-- July 10, 2025. SESSION FIX: Resolved AuthKeyDuplicatedError with automatic session recovery system
-- July 10, 2025. Added auto-retry mechanism for creating new sessions when IP conflicts occur
-- July 10, 2025. Bot now operates in Web-only mode when MTProto fails - callback buttons still functional
-- July 10, 2025. All 3 admins (6395626140, 7766810783, 564704015) can access bot commands and callback buttons
-- July 10, 2025. Health check shows healthy status: Bot API + Web server running on port 5000
 ```
 
 ## User Preferences

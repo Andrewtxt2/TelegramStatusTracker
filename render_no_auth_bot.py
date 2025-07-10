@@ -57,16 +57,12 @@ class RenderNoAuthBot:
             # Start web server first
             await self.start_web_server()
 
-            # Try to use existing session with unique name
-            unique_session = f'replit_fix_{int(time.time())}.session'
-            
-            # Try different session files to avoid IP conflicts
+            # Try to use existing session
             session_files = [
+                'simple_render_bot.session',
+                'auth_session.session',
                 'working_session.session',
-                'final_session.session', 
-                'perfect_session.session',
-                'render_session.session',
-                'auth_session.session'
+                'render_session.session'
             ]
 
             session_used = None
@@ -91,91 +87,56 @@ class RenderNoAuthBot:
                     await self.start_web_only()
                     return
 
-                await self.setup_mtproto_connection()
+                me = await self.client.get_me()
+                logger.info(f"✅ MTProto connected: {me.first_name}")
+
+                # Get target group
+                logger.info("🔍 Searching for target group...")
+                if SOURCE_GROUP.startswith('https://t.me/'):
+                    group_username = SOURCE_GROUP.split('/')[-1]
+                else:
+                    group_username = SOURCE_GROUP
+
+                self.target_entity = await self.client.get_entity(group_username)
+                logger.info(f"✅ Group found: {self.target_entity.title}")
+
+                # Initialize Bot API
+                self.bot = TelegramBot(token=BOT_TOKEN)
+                logger.info("✅ Bot API connected")
+
+                # Setup handlers
+                await self.setup_handlers()
+
+                # Setup bot handlers
+                await self.setup_bot_handlers()
+
+                # Start bot polling in background task  
+                asyncio.create_task(self.start_polling_safely())
+
+                # Notify admins
+                await self.notify_admins(
+                    "🚀 Render No Auth Bot STARTED!\n\n"
+                    "✅ Використовується існуюча сесія\n"
+                    "✅ Моніторинг групи активний\n"
+                    "✅ Web server запущений\n"
+                    "✅ Кнопки схвалення працюють\n\n"
+                    f"📋 Група: {self.target_entity.title}\n"
+                    f"📢 Канал: {TARGET_CHANNEL}\n"
+                    f"🌐 Порт: {PORT}"
+                )
+
+                logger.info("🔄 Bot running...")
+
+                # Keep running
+                await self.client.run_until_disconnected()
 
             except Exception as e:
                 logger.error(f"❌ MTProto error: {e}")
-                
-                # If AuthKeyDuplicatedError, try to create new session
-                if "authorization key" in str(e).lower() and "different ip" in str(e).lower():
-                    logger.info("🔄 Attempting to create new session...")
-                    try:
-                        # Create completely new session
-                        new_session = f'replit_fresh_{int(time.time())}'
-                        self.client = TelegramClient(new_session, API_ID, API_HASH)
-                        
-                        # This will require manual authentication
-                        logger.info("⚠️ New session needs authentication - check logs")
-                        await self.client.connect()
-                        
-                        if not await self.client.is_user_authorized():
-                            logger.warning("⚠️ New session needs phone/code verification")
-                            await self.start_web_only()
-                            return
-                        
-                        logger.info("✅ New session created successfully")
-                        # Continue with setup
-                        await self.setup_mtproto_connection()
-                        return
-                        
-                    except Exception as new_e:
-                        logger.error(f"❌ New session creation failed: {new_e}")
-                
                 await self.start_web_only()
 
         except Exception as e:
             logger.error(f"❌ Startup error: {e}")
             logger.error(traceback.format_exc())
-            await self.start_web_only()
-            
-    async def setup_mtproto_connection(self):
-        """Setup MTProto connection and services"""
-        try:
-            me = await self.client.get_me()
-            logger.info(f"✅ MTProto connected: {me.first_name}")
-
-            # Get target group
-            logger.info("🔍 Searching for target group...")
-            if SOURCE_GROUP.startswith('https://t.me/'):
-                group_username = SOURCE_GROUP.split('/')[-1]
-            else:
-                group_username = SOURCE_GROUP
-
-            self.target_entity = await self.client.get_entity(group_username)
-            logger.info(f"✅ Group found: {self.target_entity.title}")
-
-            # Initialize Bot API
-            self.bot = TelegramBot(token=BOT_TOKEN)
-            logger.info("✅ Bot API connected")
-
-            # Setup handlers
-            await self.setup_handlers()
-
-            # Setup bot handlers
-            await self.setup_bot_handlers()
-
-            # Start bot polling in background task  
-            asyncio.create_task(self.start_polling_safely())
-
-            # Notify admins
-            await self.notify_admins(
-                "🚀 Render No Auth Bot STARTED!\n\n"
-                "✅ Використовується сесія\n"
-                "✅ Моніторинг групи активний\n"
-                "✅ Web server запущений\n"
-                "✅ Кнопки схвалення працюють\n\n"
-                f"📋 Група: {self.target_entity.title}\n"
-                f"📢 Канал: {TARGET_CHANNEL}\n"
-                f"🌐 Порт: {PORT}"
-            )
-
-            logger.info("🔄 Bot running...")
-
-            # Keep running
-            await self.client.run_until_disconnected()
-            
-        except Exception as e:
-            logger.error(f"❌ MTProto setup error: {e}")
             await self.start_web_only()
 
     async def start_web_only(self):
