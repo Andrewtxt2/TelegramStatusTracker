@@ -230,6 +230,8 @@ Changelog:
 - July 10, 2025. Created new authenticated session for Andrew Max account
 - July 10, 2025. Successfully resolved AuthKeyDuplicatedError with new account
 - July 10, 2025. System fully operational with new account: MTProto, Bot API, Web server all healthy
+- July 10, 2025. Added admin ID 564704015 to button permissions and message visibility
+- July 10, 2025. All three admins now receive notifications: 6395626140, 7766810783, 564704015
 ```
 
 ## User Preferences

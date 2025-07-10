@@ -21,7 +21,7 @@ from aiohttp.web import Request, Response
 API_ID = int(os.getenv('TELEGRAM_API_ID', '29299324'))
 API_HASH = os.getenv('TELEGRAM_API_HASH', 'c262483dda2739c72637661b537dccac')
 BOT_TOKEN = os.getenv('BOT_TOKEN', '8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc')
-ADMIN_IDS = [int(x) for x in os.getenv('ADMIN_IDS', '6395626140,7766810783').split(',')]
+ADMIN_IDS = [int(x) for x in os.getenv('ADMIN_IDS', '6395626140,7766810783,564704015').split(',')]
 SOURCE_GROUP = os.getenv('SOURCE_GROUP', 'https://t.me/pereizdvyshneve')
 TARGET_CHANNEL = os.getenv('TARGET_CHANNEL', '@kryuvysh')
 PORT = int(os.getenv('PORT', '5000'))
