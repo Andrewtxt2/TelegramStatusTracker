@@ -18,8 +18,8 @@ from aiohttp import web
 from aiohttp.web import Request, Response
 
 # Configuration
-API_ID = int(os.getenv('TELEGRAM_API_ID', '26886585'))
-API_HASH = os.getenv('TELEGRAM_API_HASH', '166e3719a0d93c12bf76af43fe91425f')
+API_ID = int(os.getenv('TELEGRAM_API_ID', '29299324'))
+API_HASH = os.getenv('TELEGRAM_API_HASH', 'c262483dda2739c72637661b537dccac')
 BOT_TOKEN = os.getenv('BOT_TOKEN', '8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc')
 ADMIN_IDS = [int(x) for x in os.getenv('ADMIN_IDS', '6395626140,7766810783').split(',')]
 SOURCE_GROUP = os.getenv('SOURCE_GROUP', 'https://t.me/pereizdvyshneve')
@@ -59,8 +59,9 @@ class RenderNoAuthBot:
             
             # Try to use existing session
             session_files = [
-                'simple_render_bot.session',
                 'auth_session.session',
+                'new_auth_session.session',
+                'simple_render_bot.session',
                 'working_session.session',
                 'render_session.session'
             ]

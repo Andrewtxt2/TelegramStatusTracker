@@ -8,9 +8,9 @@ services:
     autoDeploy: true
     envVars:
       - key: TELEGRAM_API_ID
-        value: "26886585"
+        value: "29299324"
       - key: TELEGRAM_API_HASH
-        value: "166e3719a0d93c12bf76af43fe91425f"
+        value: "c262483dda2739c72637661b537dccac"
       - key: BOT_TOKEN
         value: "8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc"
       - key: ADMIN_IDS

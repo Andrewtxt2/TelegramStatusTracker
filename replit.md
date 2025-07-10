@@ -225,6 +225,11 @@ Changelog:
 - July 09, 2025. Fixed "Configuration validation failed" error by adding bot_token to config.json
 - July 09, 2025. Added diagnostic logging to main.py to track Render deployment issues
 - July 09, 2025. Confirmed render_no_auth_bot.py works correctly with all environment variables
+- July 10, 2025. ACCOUNT CHANGE: Switched to new account (Andrew Max) with fresh credentials
+- July 10, 2025. Updated API credentials: ID 29299324, phone +380633952873
+- July 10, 2025. Created new authenticated session for Andrew Max account
+- July 10, 2025. Successfully resolved AuthKeyDuplicatedError with new account
+- July 10, 2025. System fully operational with new account: MTProto, Bot API, Web server all healthy
 ```
 
 ## User Preferences

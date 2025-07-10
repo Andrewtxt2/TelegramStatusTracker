@@ -18,7 +18,11 @@ args = "Telegram Bot Setup"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Main Bot"
+args = "New Account Auth"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "New Account Bot"
 
 [[workflows.workflow]]
 name = "Telegram Bot Setup"
@@ -110,7 +114,15 @@ task = "shell.exec"
 args = "python3 standalone_bot.py"
 
 [[workflows.workflow]]
-name = "Main Bot"
+name = "New Account Auth"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 new_auth_setup.py"
+
+[[workflows.workflow]]
+name = "New Account Bot"
 author = "agent"
 
 [[workflows.workflow.tasks]]
