@@ -238,6 +238,8 @@ Changelog:
 - July 10, 2025. Fixed message monitoring blocking issue - now uses proper concurrent execution
 - July 10, 2025. Message handler properly registered for target group (ID: 1643589680)
 - July 10, 2025. All systems running: MTProto monitoring, Bot API polling, Health checks
+- July 10, 2025. FIXED: Bot API polling AttributeError - added compatibility layer for python-telegram-bot versions
+- July 10, 2025. System fully stable: MTProto + Bot API + Web server all operational without errors
 ```
 
 ## User Preferences

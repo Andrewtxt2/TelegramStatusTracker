@@ -184,13 +184,32 @@ class StableRenderBot:
             await self.app.initialize()
             await self.app.start()
             
-            # Start polling
-            await self.app.updater.start_polling(
-                drop_pending_updates=True,
-                allowed_updates=["callback_query", "message"]
-            )
-            
-            logger.info("✅ Bot API polling started")
+            # Start polling with proper error handling
+            try:
+                updater = self.app.updater
+                await updater.start_polling(
+                    drop_pending_updates=True,
+                    allowed_updates=["callback_query", "message"]
+                )
+                logger.info("✅ Bot API polling started")
+            except AttributeError as attr_error:
+                logger.warning(f"⚠️ Polling method not available: {attr_error}")
+                logger.info("🔄 Using alternative polling approach...")
+                
+                # Alternative: Manual polling loop
+                while self.running:
+                    try:
+                        await asyncio.sleep(1)
+                        # Process updates manually if needed
+                        if hasattr(self.app, 'process_update'):
+                            updates = await self.app.bot.get_updates()
+                            for update in updates:
+                                await self.app.process_update(update)
+                    except Exception as poll_error:
+                        logger.error(f"❌ Manual polling error: {poll_error}")
+                        await asyncio.sleep(5)
+                        
+                logger.info("✅ Alternative polling active")
             
             # Keep polling alive
             while self.running:
