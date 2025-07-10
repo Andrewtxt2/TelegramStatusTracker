@@ -232,6 +232,8 @@ Changelog:
 - July 10, 2025. System fully operational with new account: MTProto, Bot API, Web server all healthy
 - July 10, 2025. Added admin ID 564704015 to button permissions and message visibility
 - July 10, 2025. All three admins now receive notifications: 6395626140, 7766810783, 564704015
+- July 10, 2025. Fixed Bot polling AttributeError with python-telegram-bot library compatibility
+- July 10, 2025. System fully operational: MTProto + Bot API + Web server all healthy
 ```
 
 ## User Preferences

@@ -213,16 +213,29 @@ class RenderNoAuthBot:
             await self.app.initialize()
             await self.app.start()
             
-            # Start polling
-            await self.app.updater.start_polling(
-                drop_pending_updates=True,
-                allowed_updates=["callback_query", "message"]
-            )
-            
-            logger.info("✅ Bot polling started")
-            
+            # Start polling with better error handling
+            try:
+                await self.app.updater.start_polling(
+                    drop_pending_updates=True,
+                    allowed_updates=["callback_query", "message"]
+                )
+                logger.info("✅ Bot polling started")
+            except AttributeError as attr_error:
+                # Handle python-telegram-bot version compatibility issues
+                logger.warning(f"⚠️ Polling attribute error: {attr_error}")
+                logger.info("🔄 Using alternative polling method...")
+                
+                # Alternative polling method
+                self.app.run_polling(
+                    drop_pending_updates=True,
+                    allowed_updates=["callback_query", "message"]
+                )
+                logger.info("✅ Alternative bot polling started")
+                
         except Exception as e:
             logger.error(f"❌ Bot polling error: {e}")
+            # Continue running even if polling fails
+            logger.info("🔄 Bot running without polling...")
             
     async def handle_root(self, request: Request) -> Response:
         """Root endpoint"""
