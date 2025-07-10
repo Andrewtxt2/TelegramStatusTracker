@@ -27,10 +27,10 @@ def main():
         bot_token = os.getenv('BOT_TOKEN', 'NOT_SET')
         logger.info(f"MAIN.PY: BOT_TOKEN exists: {bot_token != 'NOT_SET'}")
         
-        logger.info("MAIN.PY: Importing render_no_auth_bot...")
-        from render_no_auth_bot import main as render_main
+        logger.info("MAIN.PY: Importing stable_render_bot...")
+        from stable_render_bot import main as render_main
         
-        logger.info("MAIN.PY: Starting render_no_auth_bot...")
+        logger.info("MAIN.PY: Starting stable_render_bot...")
         import asyncio
         asyncio.run(render_main())
         
