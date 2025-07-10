@@ -58,19 +58,44 @@ class RenderNoAuthBot:
             await self.start_web_server()
 
             # Try to use existing session
-            session_files = [
-                'simple_render_bot.session',
-                'auth_session.session',
-                'working_session.session',
-                'render_session.session'
+            # Find session files with pattern matching
+            import glob
+            
+            # Look for local sessions first (to avoid IP conflicts with Render)
+            local_sessions = [
+                'local_replit_session.session',
+                'local_test_session.session'
             ]
-
+            
             session_used = None
-            for session_file in session_files:
+            for session_file in local_sessions:
                 if os.path.exists(session_file):
                     session_used = session_file
-                    logger.info(f"📱 Using existing session: {session_file}")
+                    logger.info(f"📱 Using local session: {session_file}")
                     break
+                    
+            if not session_used:
+                # Try dynamic local sessions
+                local_sessions = glob.glob('local_test_session_*.session')
+                if local_sessions:
+                    # Sort by modification time, newest first
+                    local_sessions.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+                    session_used = local_sessions[0]
+                    logger.info(f"📱 Using dynamic local session: {session_used}")
+                else:
+                    # Fallback to regular session files (may cause IP conflicts)
+                    session_files = [
+                        'simple_render_bot.session',
+                        'auth_session.session', 
+                        'working_session.session',
+                        'render_session.session'
+                    ]
+                    
+                    for session_file in session_files:
+                        if os.path.exists(session_file):
+                            session_used = session_file
+                            logger.info(f"📱 Using existing session: {session_file}")
+                            break
 
             if not session_used:
                 logger.warning("⚠️ No existing session found, starting web server only")
