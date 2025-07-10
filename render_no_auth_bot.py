@@ -58,11 +58,13 @@ class RenderNoAuthBot:
             await self.start_web_server()
 
             # Try to use existing session
+            # Use working sessions from yesterday
             session_files = [
-                'simple_render_bot.session',
                 'auth_session.session',
-                'working_session.session',
-                'render_session.session'
+                'final_session.session',
+                'perfect_session.session',
+                'ultimate_session_1752065456.session',
+                'standalone_session_1752058561.session'
             ]
 
             session_used = None
@@ -73,9 +75,9 @@ class RenderNoAuthBot:
                     break
 
             if not session_used:
-                logger.warning("⚠️ No existing session found, starting web server only")
-                await self.start_web_only()
-                return
+                logger.warning("⚠️ No existing session found, using backup session")
+                session_used = 'final_session.session'
+                logger.info(f"📱 Using backup session: {session_used}")
 
             # Initialize MTProto client with existing session
             self.client = TelegramClient(session_used.replace('.session', ''), API_ID, API_HASH)
@@ -83,8 +85,8 @@ class RenderNoAuthBot:
             try:
                 await self.client.connect()
                 if not await self.client.is_user_authorized():
-                    logger.warning("⚠️ Session not authorized, starting web server only")
-                    await self.start_web_only()
+                    logger.warning("⚠️ Session not authorized, need to authenticate")
+                    await self.authenticate_user()
                     return
 
                 me = await self.client.get_me()
@@ -132,7 +134,12 @@ class RenderNoAuthBot:
 
             except Exception as e:
                 logger.error(f"❌ MTProto error: {e}")
-                await self.start_web_only()
+                if "authorization key" in str(e) or "AuthKeyDuplicatedError" in str(e):
+                    logger.info("🔄 Session conflict detected, creating new session")
+                    await self.create_new_session()
+                    return
+                else:
+                    await self.start_web_only()
 
         except Exception as e:
             logger.error(f"❌ Startup error: {e}")
@@ -452,6 +459,114 @@ class RenderNoAuthBot:
                     logger.error(f"❌ Failed to notify admin {admin_id}: {e}")
         except Exception as e:
             logger.error(f"❌ Notify admins error: {e}")
+
+    async def authenticate_user(self):
+        """Authenticate user for MTProto"""
+        try:
+            logger.info("📱 Starting authentication process...")
+            
+            # Request phone number
+            phone = "+380 68 685 01 66"  # Your phone number
+            logger.info(f"📞 Using phone: {phone}")
+            
+            await self.client.send_code_request(phone)
+            logger.info("📨 Code sent to phone")
+            
+            # In production, you would need to get code from user
+            # For now, notify admins that authentication is needed
+            await self.notify_admins(
+                "🔐 ПОТРІБНА АВТЕНТИФІКАЦІЯ\n\n"
+                "Система потребує повторної автентифікації.\n"
+                "Перевірте логи системи для отримання коду."
+            )
+            
+            # Keep web server running
+            await self.start_web_only()
+            
+        except Exception as e:
+            logger.error(f"❌ Authentication error: {e}")
+            await self.start_web_only()
+
+    async def create_new_session(self):
+        """Create new session to avoid IP conflicts"""
+        try:
+            logger.info("🔄 Creating new session...")
+            
+            # Create new session name
+            import time
+            new_session_name = f'fixed_bot_session_{int(time.time())}'
+            
+            # Create new client with new session
+            new_client = TelegramClient(new_session_name, API_ID, API_HASH)
+            
+            # Try to connect
+            await new_client.connect()
+            
+            if not await new_client.is_user_authorized():
+                logger.info("📱 New session needs authentication")
+                await self.authenticate_user()
+                return
+            
+            # Replace old client
+            if self.client:
+                await self.client.disconnect()
+            
+            self.client = new_client
+            logger.info(f"✅ New session created: {new_session_name}")
+            
+            # Continue with startup
+            await self.start_main_process()
+            
+        except Exception as e:
+            logger.error(f"❌ Session creation error: {e}")
+            await self.start_web_only()
+
+    async def start_main_process(self):
+        """Start main process after successful authentication"""
+        try:
+            # Get target group
+            logger.info("🔍 Searching for target group...")
+            if SOURCE_GROUP.startswith('https://t.me/'):
+                group_username = SOURCE_GROUP.split('/')[-1]
+            else:
+                group_username = SOURCE_GROUP
+
+            self.target_entity = await self.client.get_entity(group_username)
+            logger.info(f"✅ Group found: {self.target_entity.title}")
+
+            # Initialize Bot API
+            self.bot = TelegramBot(token=BOT_TOKEN)
+            logger.info("✅ Bot API connected")
+
+            # Setup handlers
+            await self.setup_handlers()
+
+            # Setup bot handlers
+            await self.setup_bot_handlers()
+
+            # Start bot polling in background task  
+            asyncio.create_task(self.start_polling_safely())
+
+            # Notify admins
+            await self.notify_admins(
+                "🚀 Fixed Bot УСПІШНО ЗАПУЩЕНО!\n\n"
+                "✅ Нова сесія створена\n"
+                "✅ Моніторинг групи активний\n"
+                "✅ Кнопки схвалення працюють\n"
+                "✅ Публікація в канал активна\n\n"
+                f"📋 Grupa: {self.target_entity.title}\n"
+                f"📢 Kanał: {TARGET_CHANNEL}\n"
+                f"🌐 Port: {PORT}"
+            )
+
+            logger.info("🔄 Bot running with new session...")
+
+            # Keep running
+            await self.client.run_until_disconnected()
+
+        except Exception as e:
+            logger.error(f"❌ Main process error: {e}")
+            await self.start_web_only()
 
     async def start_polling_safely(self):
         """Start bot polling safely without event loop conflicts"""

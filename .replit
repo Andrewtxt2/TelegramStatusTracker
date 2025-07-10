@@ -18,7 +18,7 @@ args = "Telegram Bot Setup"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Fixed Bot"
+args = "MTProto Bot"
 
 [[workflows.workflow]]
 name = "Telegram Bot Setup"
@@ -110,7 +110,7 @@ task = "shell.exec"
 args = "python3 standalone_bot.py"
 
 [[workflows.workflow]]
-name = "Fixed Bot"
+name = "MTProto Bot"
 author = "agent"
 
 [[workflows.workflow.tasks]]
