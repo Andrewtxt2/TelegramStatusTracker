@@ -18,8 +18,8 @@ from aiohttp import web
 from aiohttp.web import Request, Response
 
 # Configuration
-API_ID = int(os.getenv('TELEGRAM_API_ID', '26886585'))
-API_HASH = os.getenv('TELEGRAM_API_HASH', '166e3719a0d93c12bf76af43fe91425f')
+API_ID = int(os.getenv('TELEGRAM_API_ID', '29299324'))
+API_HASH = os.getenv('TELEGRAM_API_HASH', 'c262483dda2739c72637661b537dccac')
 BOT_TOKEN = os.getenv('BOT_TOKEN', '8189087426:AAF2XtTEwDRbwvWny-Hi2BPz_0ZeJHh9DEc')
 ADMIN_IDS = [int(x) for x in os.getenv('ADMIN_IDS', '6395626140,7766810783,564704015').split(',')]
 SOURCE_GROUP = os.getenv('SOURCE_GROUP', 'https://t.me/pereizdvyshneve')
@@ -58,13 +58,11 @@ class RenderNoAuthBot:
             await self.start_web_server()
 
             # Try to use existing session
-            # Use working sessions from yesterday
+            # Use primary session file
             session_files = [
                 'auth_session.session',
-                'final_session.session',
-                'perfect_session.session',
-                'ultimate_session_1752065456.session',
-                'standalone_session_1752058561.session'
+                'new_account.session',
+                'fresh_session.session'
             ]
 
             session_used = None
@@ -75,9 +73,14 @@ class RenderNoAuthBot:
                     break
 
             if not session_used:
-                logger.warning("⚠️ No existing session found, using backup session")
-                session_used = 'final_session.session'
-                logger.info(f"📱 Using backup session: {session_used}")
+                logger.warning("⚠️ No existing session found, need new account setup")
+                await self.notify_admins(
+                    "🔐 ПОТРІБНА НОВА АВТЕНТИФІКАЦІЯ\n\n"
+                    "Система потребує налаштування з новим акаунтом.\n"
+                    "Запустіть: python3 new_account_auth.py"
+                )
+                await self.start_web_only()
+                return
 
             # Initialize MTProto client with existing session
             self.client = TelegramClient(session_used.replace('.session', ''), API_ID, API_HASH)
