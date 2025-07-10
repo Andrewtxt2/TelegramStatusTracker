@@ -405,24 +405,48 @@ class RenderNoAuthBot:
         """Handle callback queries"""
         try:
             query = update.callback_query
-            await query.answer()
-            
+            user_id = query.from_user.id
             data = query.data
-            logger.info(f"🎯 Callback: {data}")
+            
+            logger.info(f"🎯 Callback from user {user_id}: {data}")
+            
+            # Check if user is admin
+            if user_id not in ADMIN_IDS:
+                logger.warning(f"⚠️ Non-admin user {user_id} tried to use callback")
+                await query.answer("❌ Доступ заборонено", show_alert=True)
+                return
+            
+            # Answer callback query immediately
+            await query.answer("🔄 Обробка...")
             
             if data.startswith("approve_"):
                 action_parts = data.split("_")
-                status = action_parts[1]
-                message_id = int(action_parts[2])
-                
-                await self.approve_message(query, message_id, status)
-                
+                if len(action_parts) >= 3:
+                    status = action_parts[1]
+                    message_id = int(action_parts[2])
+                    
+                    logger.info(f"✅ Processing approve: {status} for message {message_id}")
+                    await self.approve_message(query, message_id, status)
+                else:
+                    logger.error(f"❌ Invalid callback data format: {data}")
+                    
             elif data.startswith("reject_"):
-                message_id = int(data.split("_")[1])
-                await self.reject_message(query, message_id)
+                parts = data.split("_")
+                if len(parts) >= 2:
+                    message_id = int(parts[1])
+                    logger.info(f"🚫 Processing reject for message {message_id}")
+                    await self.reject_message(query, message_id)
+                else:
+                    logger.error(f"❌ Invalid callback data format: {data}")
+            else:
+                logger.error(f"❌ Unknown callback data: {data}")
                 
         except Exception as e:
             logger.error(f"❌ Callback error: {e}")
+            try:
+                await query.answer("❌ Помилка обробки", show_alert=True)
+            except:
+                pass
             
     async def approve_message(self, query, message_id: int, status: str):
         """Approve and publish message"""
@@ -440,20 +464,39 @@ class RenderNoAuthBot:
                 channel_text = f"❌ Закрито\n🕓 {time_str}"
             
             # Send to channel
-            await self.bot.send_message(
-                chat_id=TARGET_CHANNEL,
-                text=channel_text
-            )
+            logger.info(f"📢 Sending to channel: {TARGET_CHANNEL}")
+            try:
+                await self.bot.send_message(
+                    chat_id=TARGET_CHANNEL,
+                    text=channel_text
+                )
+                logger.info(f"✅ Successfully sent to channel")
+            except Exception as channel_error:
+                logger.error(f"❌ Channel send error: {channel_error}")
+                # Still update admin about partial success
+                await query.edit_message_text(
+                    f"⚠️ Повідомлення обробено з помилкою!\n\n❌ Канал: {channel_error}\n📝 Статус: {status}\n🕓 Час: {time_str}"
+                )
+                return
             
             # Update admin
-            await query.edit_message_text(
-                f"✅ Повідомлення схвалено!\n\n📢 Канал: {TARGET_CHANNEL}\n📝 Статус: {status}\n🕓 Час: {time_str}"
-            )
+            logger.info(f"🔄 Updating admin message")
+            try:
+                await query.edit_message_text(
+                    f"✅ Повідомлення схвалено!\n\n📢 Канал: {TARGET_CHANNEL}\n📝 Статус: {status}\n🕓 Час: {time_str}"
+                )
+                logger.info(f"✅ Admin message updated")
+            except Exception as edit_error:
+                logger.error(f"❌ Admin message edit error: {edit_error}")
             
-            logger.info(f"✅ Message {message_id} published")
+            logger.info(f"✅ Message {message_id} fully processed")
             
         except Exception as e:
             logger.error(f"❌ Approve error: {e}")
+            try:
+                await query.edit_message_text(f"❌ Помилка: {str(e)}")
+            except:
+                pass
             
     async def reject_message(self, query, message_id: int):
         """Reject message"""
