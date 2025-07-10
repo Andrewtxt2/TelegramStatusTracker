@@ -251,12 +251,23 @@ class StableRenderBot:
                 return
                 
             # Skip old messages (more than 1 hour)
-            # Convert to UTC for comparison
+            # Handle timezone comparison properly
             from datetime import timezone
-            now_utc = datetime.now(timezone.utc)
-            if message.date < now_utc - timedelta(hours=1):
-                logger.info(f"⏩ Skipping old message {message.id}")
-                return
+            try:
+                # Convert message date to UTC if needed
+                if message.date.tzinfo is None:
+                    message_date = message.date.replace(tzinfo=timezone.utc)
+                else:
+                    message_date = message.date
+                
+                # Compare with UTC now
+                now_utc = datetime.now(timezone.utc)
+                if message_date < now_utc - timedelta(hours=1):
+                    logger.info(f"⏩ Skipping old message {message.id}")
+                    return
+            except Exception as dt_error:
+                logger.warning(f"⚠️ DateTime comparison issue: {dt_error}")
+                # Continue processing if datetime comparison fails
                 
             logger.info(f"📝 Processing message {message.id}: {message.text[:50]}...")
             
